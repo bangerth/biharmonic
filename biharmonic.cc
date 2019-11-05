@@ -359,112 +359,6 @@ namespace StepBiharmonic
     dinfo1.value(0) = std::sqrt(dinfo1.value(0));
     dinfo2.value(0) = dinfo1.value(0);
   }
-  /************NEW ADDING THE ESTIMATOR CLASS ********************/
-  template <int dim>
-  class Estimator : public MeshWorker::LocalIntegrator<dim>
-  {
-  public:
-    void cell(MeshWorker::DoFInfo<dim> &                 dinfo,
-              typename MeshWorker::IntegrationInfo<dim> &info) const;
-    void boundary(MeshWorker::DoFInfo<dim> &                 dinfo,
-                  typename MeshWorker::IntegrationInfo<dim> &info) const;
-    void face(MeshWorker::DoFInfo<dim> &                 dinfo1,
-              MeshWorker::DoFInfo<dim> &                 dinfo2,
-              typename MeshWorker::IntegrationInfo<dim> &info1,
-              typename MeshWorker::IntegrationInfo<dim> &info2) const;
-  };
-
-
-  // The cell contribution is the Laplacian of the discrete solution, since
-  // the right hand side is zero.
-  template <int dim>
-  void
-  Estimator<dim>::cell(MeshWorker::DoFInfo<dim> &                 dinfo,
-                       typename MeshWorker::IntegrationInfo<dim> &info) const
-  {
-    const FEValuesBase<dim> &fe = info.fe_values();
-    const RightHandSide<dim> rhs;
-    std::vector<double>      rhs_values(fe.n_quadrature_points);
-    rhs.value_list(fe.get_quadrature_points(), rhs_values);
-    const double h = dinfo.cell->diameter();
-
-    for (unsigned k = 0; k < fe.n_quadrature_points; ++k)
-      {
-        const double t = pow(h, 2) * rhs_values[k]; //(4*pow(PI,4)*std::sin(x)*std::sin(y));//dinfo.cell->diameter()
-                                                    //* trace(DDuh[k]);
-        dinfo.value(0) += t * t * fe.JxW(k);
-      }
-    dinfo.value(0) = std::sqrt(dinfo.value(0));
-  }
-
-  // At the boundary, we use simply a weighted form of the boundary residual,
-  // namely the norm of the difference between the finite element solution and
-  // the correct boundary condition.
-  template <int dim>
-  void Estimator<dim>::boundary(
-    MeshWorker::DoFInfo<dim> &                 dinfo,
-    typename MeshWorker::IntegrationInfo<dim> &info) const
-  {
-    const FEValuesBase<dim> &fe = info.fe_values();
-    const Solution<dim>      extsol;
-    std::vector<double>      boundary_values(fe.n_quadrature_points);
-    extsol.value_list(fe.get_quadrature_points(), boundary_values);
-
-    const std::vector<double> &uh = info.values[0][0];
-
-    const unsigned int deg = fe.get_fe().tensor_degree();
-    const double       penalty =
-      2. * deg * (deg + 1) * dinfo.face->measure() / dinfo.cell->measure();
-    // const double h =dinfo.cell->diameter();
-    for (unsigned k = 0; k < fe.n_quadrature_points; ++k)
-      {
-        const double dx = fe.JxW(k);
-        // const double x = PI * fe.quadrature_point(k)(0);
-        // const double y = PI * fe.quadrature_point(k)(1);
-        // boundary_values[k] = std::sin(x)*std::sin(y);
-
-
-        // const double t = pow(h,4) * (4*pow(PI,4)*std::sin(x)*std::sin(y));
-        dinfo.value(0) += penalty * (boundary_values[k] - uh[k]) *
-                          (boundary_values[k] - uh[k]) * dx;
-      }
-
-
-    dinfo.value(0) = 0 * std::sqrt(dinfo.value(0));
-  }
-
-
-  // Finally, on interior faces, the estimator consists of the jumps of the
-  // solution and its normal derivative, weighted appropriately.
-  template <int dim>
-  void
-  Estimator<dim>::face(MeshWorker::DoFInfo<dim> &                 dinfo1,
-                       MeshWorker::DoFInfo<dim> &                 dinfo2,
-                       typename MeshWorker::IntegrationInfo<dim> &info1,
-                       typename MeshWorker::IntegrationInfo<dim> &info2) const
-  {
-    for (unsigned k = 0; k < info1.fe_values(0).n_quadrature_points; ++k)
-
-
-      {
-        const double          h  = dinfo1.face->measure();
-        const double          dx = info1.fe_values(0).JxW(k);
-        const Tensor<1, dim> &n  = info1.fe_values(0).normal_vector(k);
-
-
-
-        Tensor<1, dim> diff_1 =
-          dealii::LocalIntegrators::Biharmonic::second_partial_n(
-            n, info1.hessians[0][0][k]);
-        diff_1 -= dealii::LocalIntegrators::Biharmonic::second_partial_n(
-          n, info2.hessians[0][0][k]);
-
-        dinfo1.value(0) += (h * h * (diff_1 * diff_1) * dx);
-      }
-    dinfo1.value(0) = std::sqrt(dinfo1.value(0));
-    dinfo2.value(0) = dinfo1.value(0);
-  }
-
 
 
   /*************************************************************/
@@ -486,7 +380,6 @@ namespace StepBiharmonic
     void   solve();
     void   error(const unsigned int cycle);
     void   output_results(const unsigned int iteration) const;
-    double estimate();
 
     Triangulation<dim>        triangulation;
     const MappingQ<dim>       mapping;
@@ -1047,95 +940,9 @@ namespace StepBiharmonic
       ("output_" + Utilities::int_to_string(iteration, 6) + ".vtk")
         .c_str());
     data_out.write_vtk(output_vtk);
-
-    data_out.add_data_vector(solution, "solution");
-    data_out.build_patches();
-    std::ofstream output("solution.gpl");
-    data_out.write_gnuplot(output);
-
-    // trying to create mesh pictures
-    Assert(iteration < 20, ExcNotImplemented());
-
-    std::string filename = "grid-";
-    filename += ('0' + iteration);
-    filename += ".eps";
-
-    std::ofstream output_eps(filename.c_str());
-
-    GridOut grid_out;
-    grid_out.write_eps(triangulation, output_eps);
-    //
   }
 
 
-
-  template <int dim>
-  double BiharmonicProblem<dim>::estimate()
-  {
-    std::vector<unsigned int> old_user_indices;
-    triangulation.save_user_indices(old_user_indices);
-
-    estimates.block(0).reinit(triangulation.n_active_cells());
-    unsigned int i = 0;
-    for (const auto &cell : triangulation.active_cell_iterators())
-      cell->set_user_index(i++);
-
-    // This starts like before,
-    MeshWorker::IntegrationInfoBox<dim> info_box;
-    const unsigned int                  n_gauss_points =
-      dof_handler.get_fe().tensor_degree() + 1;
-    info_box.initialize_gauss_quadrature(n_gauss_points,
-                                         n_gauss_points + 1,
-                                         n_gauss_points);
-
-    // but now we need to notify the info box of the finite element function we
-    // want to evaluate in the quadrature points. First, we create an AnyData
-    // object with this vector, which is the solution we just computed.
-    AnyData solution_data;
-    solution_data.add<const Vector<double> *>(&solution, "solution");
-
-    // Then, we tell the Meshworker::VectorSelector for cells, that we need
-    // the second derivatives of this solution (to compute the
-    // Laplacian). Therefore, the Boolean arguments selecting function values
-    // and first derivatives a false, only the last one selecting second
-    // derivatives is true.
-    info_box.cell_selector.add("solution", true, true, true);
-    // On interior and boundary faces, we need the function values and the
-    // first derivatives, but not second derivatives.
-    info_box.boundary_selector.add("solution", true, true, true);
-    info_box.face_selector.add("solution", true, true, true);
-
-    // And we continue as before, with the exception that the default update
-    // flags are already adjusted to the values and derivatives we requested
-    // above.
-    // info_box.add_update_flags_boundary(update_quadrature_points );
-    UpdateFlags update_flags = update_values | update_quadrature_points |
-                               update_gradients | update_hessians;
-    info_box.add_update_flags_all(update_flags);
-    info_box.initialize(fe, mapping, solution_data, solution);
-
-    MeshWorker::DoFInfo<dim> dof_info(dof_handler);
-
-    // The assembler stores one number per cell, but else this is the same as
-    // in the computation of the right hand side.
-    MeshWorker::Assembler::CellsAndFaces<double> assembler;
-    AnyData                                      out_data;
-    out_data.add<BlockVector<double> *>(&estimates, "cells");
-    assembler.initialize(out_data, false);
-
-    Estimator<dim> integrator;
-    MeshWorker::integration_loop<dim, dim>(dof_handler.begin_active(),
-                                           dof_handler.end(),
-                                           dof_info,
-                                           info_box,
-                                           integrator,
-                                           assembler);
-
-    // Right before we return the result of the error estimate, we restore the
-    // old user indices.
-    triangulation.load_user_indices(old_user_indices);
-    return estimates.block(0).l2_norm();
-  }
 
 
   template <int dim>
@@ -1160,7 +967,6 @@ namespace StepBiharmonic
         output_results(cycle);
 
         error(cycle);
-        std::cout << "   Estimate:  " << estimate() << std::endl;
         std::cout << std::endl;
       }
 
