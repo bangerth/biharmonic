@@ -61,7 +61,7 @@ TODO:
 
 
 
-#include "../biharmonic.h"
+#include "biharmonic.h"
 
 #include <deal.II/base/function_lib.h>
 #include <deal.II/numerics/vector_tools.h>
@@ -95,13 +95,13 @@ namespace StepBiharmonic
         : Function<dim>()
       {}
       virtual double value(const Point<dim> & p,
-                           const unsigned int component = 0) const
+                           const unsigned int /*component*/ = 0) const
       {
         return sin(PI * p[0]) * sin(PI * p[1]);
       }
 
       virtual Tensor<1, dim> gradient(const Point<dim> & p,
-                                      const unsigned int component = 0) const
+                                      const unsigned int /*component*/ = 0) const
       {
         Tensor<1, dim> r;
         r[0] = PI * cos(PI * p[0]) * sin(PI * p[1]);
@@ -111,7 +111,7 @@ namespace StepBiharmonic
 
       virtual void hessian_list(const std::vector<Point<dim>> &       points,
                                 std::vector<SymmetricTensor<2, dim>> &hessians,
-                                const unsigned int component = 0) const
+                                const unsigned int /*component*/ = 0) const
       {
         for (unsigned i = 0; i < points.size(); ++i)
           {
@@ -136,7 +136,7 @@ namespace StepBiharmonic
       {}
 
       virtual double value(const Point<dim> & p,
-                           const unsigned int component = 0) const
+                           const unsigned int /*component*/ = 0) const
 
       {
         return 4 * std::pow(PI, 4.0) * sin(PI * p[0]) * sin(PI * p[1]);
