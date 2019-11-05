@@ -625,8 +625,6 @@ namespace StepBiharmonic
     void   make_grid();
     void   setup_system();
     void   assemble();
-    void   assemble_system();
-    void   assemble_right_hand_side();
     void   solve();
     void   error(const unsigned int cycle);
     void   output_results(const unsigned int iteration) const;
@@ -689,8 +687,7 @@ namespace StepBiharmonic
   {
     dof_handler.distribute_dofs(fe);
 
-    std::cout << "Number of degrees of freedom: " << dof_handler.n_dofs()
-              << std::endl
+    std::cout << "   Number of degrees of freedom: " << dof_handler.n_dofs()
               << std::endl;
 
     constraints.clear();
@@ -998,8 +995,6 @@ namespace StepBiharmonic
     };
 
     auto copier = [&](const CopyData &c) {
-      //	  std::cout << "cell" << std::endl;
-
       constraints.distribute_local_to_global(c.cell_matrix,
                                              c.cell_rhs,
                                              c.local_dof_indices,
@@ -1008,12 +1003,6 @@ namespace StepBiharmonic
 
       for (auto &cdf : c.face_data)
         {
-          //	  std::cout << "face" << std::endl;
-          //	  for (auto i : cdf.joint_dof_indices)
-          // std::cout << i << std::endl;
-
-          //	  cdf.cell_matrix.print(std::cout);
-
           constraints.distribute_local_to_global(cdf.cell_matrix,
                                                  cdf.joint_dof_indices,
                                                  system_matrix);
@@ -1044,66 +1033,6 @@ namespace StepBiharmonic
                           boundary_worker,
                           face_worker);
   }
-
-
-
-  template <int dim>
-  void BiharmonicProblem<dim>::assemble_system()
-  {
-    std::cout << "   Assembling system..." << std::endl;
-
-    MeshWorker::IntegrationInfoBox<dim> info_box;
-
-    UpdateFlags update_flags = update_values | update_quadrature_points |
-                               update_gradients | update_hessians;
-    info_box.add_update_flags_all(update_flags);
-    info_box.initialize(fe, mapping);
-
-    MeshWorker::DoFInfo<dim> dof_info(dof_handler);
-
-    MeshWorker::Assembler::MatrixSimple<SparseMatrix<double>> assembler;
-
-    assembler.initialize(system_matrix);
-
-    MatrixIntegrator<dim> integrator;
-
-    MeshWorker::integration_loop<dim, dim>(dof_handler.begin_active(),
-                                           dof_handler.end(),
-                                           dof_info,
-                                           info_box,
-                                           integrator,
-                                           assembler);
-  }
-
-
-
-  template <int dim>
-  void BiharmonicProblem<dim>::assemble_right_hand_side()
-  {
-    std::cout << "   Assembling rhs..." << std::endl;
-    MeshWorker::IntegrationInfoBox<dim> info_box;
-    UpdateFlags update_flags = update_quadrature_points | update_values |
-                               update_gradients | update_hessians;
-    info_box.add_update_flags_all(update_flags);
-    info_box.initialize(fe, mapping);
-
-    MeshWorker::DoFInfo<dim> dof_info(dof_handler);
-
-    MeshWorker::Assembler::ResidualSimple<Vector<double>> assembler;
-    AnyData                                               data;
-    Vector<double> *                                      rhs = &system_rhs;
-    data.add(rhs, "RHS");
-    assembler.initialize(data);
-
-    RHSIntegrator<dim> integrator;
-    MeshWorker::integration_loop<dim, dim>(dof_handler.begin_active(),
-                                           dof_handler.end(),
-                                           dof_info,
-                                           info_box,
-                                           integrator,
-                                           assembler);
-  }
-
 
 
   template <int dim>
@@ -1162,8 +1091,8 @@ namespace StepBiharmonic
                                            info_box,
                                            integrator,
                                            assembler);
-    std::cout << "energy-error: " << errors.block(0).l2_norm() << std::endl;
-    std::cout << "L2-error: " << errors.block(1).l2_norm() << std::endl;
+    std::cout << "   energy-error: " << errors.block(0).l2_norm() << std::endl;
+    std::cout << "   L2-error: " << errors.block(1).l2_norm() << std::endl;
 
     errors_list(cycle)    = (errors.block(0).l2_norm());
     errors_list_l2(cycle) = errors.block(1).l2_norm();
@@ -1180,7 +1109,7 @@ namespace StepBiharmonic
         VectorTools::compute_global_error(triangulation,
                                           norm_per_cell,
                                           VectorTools::L2_norm);
-      std::cout << "l2 timo " << solution_norm << std::endl;
+      std::cout << "   l2 timo " << solution_norm << std::endl;
 
       {
         const QGauss<dim> quadrature_formula(fe.degree + 2);
@@ -1215,7 +1144,7 @@ namespace StepBiharmonic
             ++id;
           }
         const double h2_semi = std::sqrt(error_per_cell.l2_norm());
-        std::cout << "h2semi timo " << h2_semi << std::endl;
+        std::cout << "   h2semi timo " << h2_semi << std::endl;
         errors_list_h2(cycle) = h2_semi;
       }
       //      VectorTools::integrate_difference(dof_handler,
@@ -1373,8 +1302,11 @@ namespace StepBiharmonic
         output_results(cycle);
 
         error(cycle);
-        std::cout << "Estimate:  " << estimate() << std::endl;
+        std::cout << "   Estimate:  " << estimate() << std::endl;
+        std::cout << std::endl;
       }
+
+    std::cout << std::endl << std::endl;
 
     std::cout << "DoFs:    " << Nd << std::endl;
     std::cout << "L2 error:  " << errors_list_l2 << std::endl;
