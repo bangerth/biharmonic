@@ -161,91 +161,8 @@ namespace StepBiharmonic
                                           std::vector<SymmetricTensor<2, dim>> &hessians,
                                           const unsigned int component = 0) const;
     };
-    /* The commented part below corresponds to the polynomial solution as the
-     * benchmark.*/
-    /*
-   template <int dim>
-   double
-   Solution<dim>::value (const Point<dim> &p,
-                             const unsigned int) const
-   {
-       return
-std::pow(p(0),2)*std::pow(p(1),2)*(1-p(0))*(1-p(0))*(1-p(1))*(1-p(1));
 
 
-   }
-
-   template <int dim>
-   Tensor<1,dim>
-   Solution<dim>::gradient (const Point<dim>   &p,
-                                const unsigned int) const
-   {
-       Tensor<1,dim> return_value;
-
-
-       return_value[0] = 2*p(0)*p(1)*p(1)*(p(0) - 1)*(p(0) - 1)*(p(1) - 1)*(p(1)
-- 1) + p(0)*p(0)*p(1)*p(1)*(2*p(0)- 2)*(p(1) - 1)*(p(1) - 1) ; return_value[1] =
-2*p(0)*p(0)*p(1)*(p(0) - 1)*(p(0) - 1)*(p(1) - 1)*(p(1) - 1)
-+p(0)*p(0)*p(1)*p(1)*(2*p(1) - 2)*(p(0) - 1)*(p(0) - 1) ;
-
-
-       return return_value;
-   }
-
-   template<int dim>
- void
-   Solution<dim>::hessian_list (const std::vector<Point<dim> > &points,
-        std::vector<Tensor<2,dim> >    &hessians,
-        const unsigned int) const
-   {
-     Tensor<1,dim> p ;
-     for (unsigned i=0; i<points.size(); ++i)
-       {
-   for (unsigned int d=0 ; d <dim ; ++d)
-     {
-           p[d] =  points[i][d];
-     } //d-loop
-   for (unsigned int d = 0 ; d < dim ; ++d)
-   {
-     hessians[i][d][d]=
-2*std::pow(p[d],2)*std::pow(p[(d+1)%dim],2)*(p[(d+1)%dim] - 1)*(p[(d+1)%dim] -
-1) + 2*std::pow(p[(d+1)%dim],2)*(p[d] - 1)*(p[d] - 1)*(p[(d+1)%dim] -
-1)*(p[(d+1)%dim] - 1)+ 4*p[d]*std::pow(p[(d+1)%dim],2)*(2*p[d] -
-2)*(p[(d+1)%dim] - 1)*(p[(d+1)%dim] - 1);
-     hessians[i][d][(d+1)%dim]=2*p[d]*std::pow(p[(d+1)%dim],2)*(2*p[(d+1)%dim] -
-2)*(p[d] - 1)*(p[d] - 1) + 2*std::pow(p[d],2)*p[(d+1)%dim]*(2*p[d] -
-2)*(p[(d+1)%dim] - 1)*(p[(d+1)%dim] - 1) +
-std::pow(p[d],2)*std::pow(p[(d+1)%dim],2)*(2*p[d] - 2)*(2*p[(d+1)%dim] - 2) +
-4*p[d]*p[(d+1)%dim]*(p[d] - 1)*(p[d] - 1)*(p[(d+1)%dim] - 1)*(p[(d+1)%dim] - 1);
-     hessians[i][(d+1)%dim][d]= hessians[i][d][(d+1)%dim];
-   }
- }
-
-   }
-   template <int dim>
-   class RightHandSide : public Function<dim>
-   {
-   public:
-       RightHandSide () : Function<dim>() {}
-
-       virtual double value (const Point<dim>   &p,
-                             const unsigned int  component = 0) const;
-   };
-
-   template <int dim>
-   double RightHandSide<dim>::value (const Point<dim> &p,
-                                     const unsigned int component) const
-   {
-       Assert (component == 0, ExcNotImplemented());
-
-       return (24*std::pow(p(0),4) - 48*std::pow(p(0),3) +
-288*std::pow(p(0),2)*std::pow(p(1),2) - 288*std::pow(p(0),2)*p(1) +
-72*std::pow(p(0),2) - 288*p(0)*std::pow(p(1),2) + 288*p(0)*p(1) - 48*p(0) +
-24*std::pow(p(1),4) - 48*std::pow(p(1),3) + 72*std::pow(p(1),2) - 48*p(1) + 8);
-
-
-   }
-  */
     template <int dim>
     double Solution<dim>::value(const Point<dim> &p, const unsigned int) const
     {
@@ -689,74 +606,6 @@ std::pow(p[d],2)*std::pow(p[(d+1)%dim],2)*(2*p[d] - 2)*(2*p[(d+1)%dim] - 2) +
     dinfo1.value(0) = std::sqrt(dinfo1.value(0));
     dinfo2.value(0) = dinfo1.value(0);
   }
-  /*
-  template <int dim>
-
-  void Estimator<dim>::cell(MeshWorker::DoFInfo<dim>& dinfo,
-      typename MeshWorker::IntegrationInfo<dim>& info)
-
-  { const FEValuesBase<dim>& fe = info.fe_values(0);
-    const double h =dinfo.cell->diameter();
-
-    for (unsigned int k=0;k<info.fe_values(0).n_quadrature_points;++k)
-      {
-
-
-
-
-
-        const double dx =fe.JxW(k);
-        const double x = PI * fe.quadrature_point(k)(0);
-        const double y = PI * fe.quadrature_point(k)(1);
-
-
-
-       const double t = pow(h,4) * (4*pow(PI,4)*std::sin(x)*std::sin(y));
-        dinfo.value(0) += t*t*dx;
-     }
-
-    dinfo.value(0) = std::sqrt(dinfo.value(0));
-  }
-
-
-  template <int dim>
-  void Estimator<dim>::face(MeshWorker::DoFInfo<dim>& dinfo1,
-  MeshWorker::DoFInfo<dim>& dinfo2, typename MeshWorker::IntegrationInfo<dim>&
-  info1,  typename MeshWorker::IntegrationInfo<dim>& info2)
-  {
-
-
-
-  for(unsigned k=0; k<info1.fe_values(0).n_quadrature_points;++k)
-
-
-  {
-        const double h = dinfo1.face->measure();
-        const double dx =info1.fe_values(0).JxW(k);
-        const Point<dim>&  n =  info1.fe_values(0).normal_vector(k);
-
-
-
-
-  Tensor<1,dim>  diff_1  =
-  dealii::LocalIntegrators::Biharmonic::second_partial_n(n,info1.hessians[0][0][k]);
-                 diff_1 -=
-  dealii::LocalIntegrators::Biharmonic::second_partial_n(n,info2.hessians[0][0][k]);
-
-        dinfo1.value(0) += (h*h*(diff_1*diff_1)*dx) ;
-      }
-        dinfo1.value(0) = std::sqrt(dinfo1.value(0));
-        dinfo2.value(0) = dinfo1.value(0);
-
-     }
-
-
-  template <int dim>
-  void Estimator<dim>::boundary(MeshWorker::DoFInfo<dim>& dinfo,
-      typename MeshWorker::IntegrationInfo<dim>& info)
-  {}
-
-  */
 
 
 
@@ -789,8 +638,6 @@ std::pow(p[d],2)*std::pow(p[(d+1)%dim],2)*(2*p[d] - 2)*(2*p[(d+1)%dim] - 2) +
     DoFHandler<dim>           dof_handler;
     ConstraintMatrix          constraints;
 
-
-
     SparsityPattern      sparsity_pattern;
     SparseMatrix<double> system_matrix, complete_system_matrix;
 
@@ -820,6 +667,9 @@ std::pow(p[d],2)*std::pow(p[(d+1)%dim],2)*(2*p[d] - 2)*(2*p[(d+1)%dim] - 2) +
     errors_list_h2.reinit(MaxCycle);
     Nd.reinit(MaxCycle);
   }
+
+
+
   template <int dim>
   void BiharmonicProblem<dim>::make_grid()
   {
@@ -831,6 +681,8 @@ std::pow(p[d],2)*std::pow(p[(d+1)%dim],2)*(2*p[d] - 2)*(2*p[(d+1)%dim] - 2) +
               << "Total number of cells: " << triangulation.n_cells()
               << std::endl;
   }
+
+
 
   template <int dim>
   void BiharmonicProblem<dim>::setup_system()
@@ -859,13 +711,14 @@ std::pow(p[d],2)*std::pow(p[(d+1)%dim],2)*(2*p[d] - 2)*(2*p[(d+1)%dim] - 2) +
                                          true);
     sparsity_pattern.copy_from(c_sparsity);
 
-
     system_matrix.reinit(sparsity_pattern);
     complete_system_matrix.reinit(sparsity_pattern);
     solution.reinit(dof_handler.n_dofs());
     system_rhs.reinit(dof_handler.n_dofs());
     complete_system_rhs.reinit(dof_handler.n_dofs());
   }
+
+
 
   template <int dim>
   struct ScratchData
@@ -1007,8 +860,6 @@ std::pow(p[d],2)*std::pow(p[(d+1)%dim],2)*(2*p[d] - 2)*(2*p[(d+1)%dim] - 2) +
       // gamma = eta/|e|
 
       double gamma = 1.0; // TODO:
-                          // dealii::LocalIntegrators::Biharmonic::compute_penalty(dinfo1,
-                          // dinfo2, deg, deg);
 
       {
         int                degree = fe.tensor_degree();
@@ -1025,17 +876,13 @@ std::pow(p[d],2)*std::pow(p[(d+1)%dim],2)*(2*p[d] - 2)*(2*p[(d+1)%dim] - 2) +
         double penalty2 = deg2sq / ncell->extent_in_direction(normal2);
         if (cell->has_children() ^ ncell->has_children())
           {
-            //          Assert (dinfo1.face == dinfo2.face, ExcInternalError());
-            // Assert (dinfo1.face->has_children(), ExcInternalError());
             penalty1 *= 8;
           }
         gamma = 0.5 * (penalty1 + penalty2);
       }
 
 
-      //     gamma = 8.0/cell->diameter();
-
-      for (unsigned int qpoint = 0; qpoint < q_points.size(); ++qpoint)
+        for (unsigned int qpoint = 0; qpoint < q_points.size(); ++qpoint)
         {
           // \int_F {grad^2 u n n } [grad v n]
           //   - {grad^2 v n n } [grad u n]
@@ -1073,6 +920,8 @@ std::pow(p[d],2)*std::pow(p[(d+1)%dim],2)*(2*p[d] - 2)*(2*p[(d+1)%dim] - 2) +
               }
         }
     };
+
+
     auto boundary_worker = [&](const Iterator &    cell,
                                const unsigned int &face_no,
                                ScratchData<dim> &  scratch_data,
@@ -1102,9 +951,7 @@ std::pow(p[d],2)*std::pow(p[(d+1)%dim],2)*(2*p[d] - 2)*(2*p[(d+1)%dim] - 2) +
       // eta = 1/2 + 2C_2
       // gamma = eta/|e|
 
-      double gamma = 1.0; // TODO:
-                          // dealii::LocalIntegrators::Biharmonic::compute_penalty(dinfo1,
-                          // dinfo2, deg, deg);
+      double gamma = 1.0;
 
       {
         int                degree = fe.tensor_degree();
@@ -1116,8 +963,6 @@ std::pow(p[d],2)*std::pow(p[(d+1)%dim],2)*(2*p[d] - 2)*(2*p[(d+1)%dim] - 2) +
         gamma = deg1sq / cell->extent_in_direction(normal1);
         //      gamma = 0.5*(penalty1 + penalty2);
       }
-
-
 
       for (unsigned int qpoint = 0; qpoint < q_points.size(); ++qpoint)
         {
@@ -1150,42 +995,6 @@ std::pow(p[d],2)*std::pow(p[(d+1)%dim],2)*(2*p[d] - 2)*(2*p[(d+1)%dim] - 2) +
                 JxW[qpoint]; // dx
             }
         }
-
-      /*
-        scratch_data.fe_interface_values.reinit(cell, face_no);
-        const FEFaceValuesBase<dim> &fe_face =
-          scratch_data.fe_interface_values.get_fe_face_values(0);
-
-        const auto &q_points = fe_face.get_quadrature_points();
-
-        const unsigned int n_facet_dofs = fe_face.get_fe().n_dofs_per_cell();
-        const std::vector<double> &        JxW     = fe_face.get_JxW_values();
-        const std::vector<Tensor<1, dim>> &normals =
-      fe_face.get_normal_vectors();
-
-        std::vector<double> g(q_points.size());
-        //      boundary_function.value_list(q_points, g);
-
-        const double gamma = 1.0;
-
-        for (unsigned int point = 0; point < q_points.size(); ++point)
-          {
-      // \int_F \Bigl(\gamma u v - \partial_n u v - u \partial_n v\Bigr)\;ds.
-
-                for (unsigned int i = 0; i < n_facet_dofs; ++i)
-                  for (unsigned int j = 0; j < n_facet_dofs; ++j)
-                    copy_data.cell_matrix(i, j) +=
-          (gamma *
-          fe_face.shape_value(i, point)   // \phi_i
-                      * fe_face.shape_value(j, point) // \phi_j
-           - fe_face.shape_grad(i, point)
-           * normals[point]
-           * fe_face.shape_value(j, point)
-           - fe_face.shape_value(i, point) //
-           * (fe_face.shape_grad(j, point)
-        * normals[point])
-          ) * JxW[point];                   // dx
-          }*/
     };
 
     auto copier = [&](const CopyData &c) {
@@ -1236,6 +1045,8 @@ std::pow(p[d],2)*std::pow(p[(d+1)%dim],2)*(2*p[d] - 2)*(2*p[(d+1)%dim] - 2) +
                           face_worker);
   }
 
+
+
   template <int dim>
   void BiharmonicProblem<dim>::assemble_system()
   {
@@ -1250,7 +1061,6 @@ std::pow(p[d],2)*std::pow(p[(d+1)%dim],2)*(2*p[d] - 2)*(2*p[(d+1)%dim] - 2) +
 
     MeshWorker::DoFInfo<dim> dof_info(dof_handler);
 
-
     MeshWorker::Assembler::MatrixSimple<SparseMatrix<double>> assembler;
 
     assembler.initialize(system_matrix);
@@ -1264,6 +1074,8 @@ std::pow(p[d],2)*std::pow(p[(d+1)%dim],2)*(2*p[d] - 2)*(2*p[(d+1)%dim] - 2) +
                                            integrator,
                                            assembler);
   }
+
+
 
   template <int dim>
   void BiharmonicProblem<dim>::assemble_right_hand_side()
@@ -1292,6 +1104,8 @@ std::pow(p[d],2)*std::pow(p[(d+1)%dim],2)*(2*p[d] - 2)*(2*p[(d+1)%dim] - 2) +
                                            assembler);
   }
 
+
+
   template <int dim>
   void BiharmonicProblem<dim>::solve()
   {
@@ -1302,6 +1116,8 @@ std::pow(p[d],2)*std::pow(p[(d+1)%dim],2)*(2*p[d] - 2)*(2*p[(d+1)%dim] - 2) +
     A_direct.vmult(solution, system_rhs);
     constraints.distribute(solution);
   }
+
+
 
   template <int dim>
   void BiharmonicProblem<dim>::error(const unsigned int cycle)
@@ -1441,7 +1257,7 @@ std::pow(p[d],2)*std::pow(p[(d+1)%dim],2)*(2*p[d] - 2)*(2*p[(d+1)%dim] - 2) +
     data_out.build_patches();
 
     std::ofstream output_vtk(
-      (std::string("output_") + Utilities::int_to_string(iteration, 6) + ".vtk")
+      ("output_" + Utilities::int_to_string(iteration, 6) + ".vtk")
         .c_str());
     data_out.write_vtk(output_vtk);
 
@@ -1463,6 +1279,8 @@ std::pow(p[d],2)*std::pow(p[(d+1)%dim],2)*(2*p[d] - 2)*(2*p[(d+1)%dim] - 2) +
     grid_out.write_eps(triangulation, output_eps);
     //
   }
+
+
 
   template <int dim>
   double BiharmonicProblem<dim>::estimate()
@@ -1549,20 +1367,7 @@ std::pow(p[d],2)*std::pow(p[(d+1)%dim],2)*(2*p[d] - 2)*(2*p[(d+1)%dim] - 2) +
 
         Nd(cycle) = dof_handler.n_dofs();
 
-        if (true)
-          {
-            assemble();
-          }
-        else
-          {
-            assemble_system();
-
-            assemble_right_hand_side();
-
-            constraints.condense(system_matrix, system_rhs);
-          }
-
-
+        assemble();
         solve();
 
         output_results(cycle);
@@ -1597,23 +1402,9 @@ std::pow(p[d],2)*std::pow(p[(d+1)%dim],2)*(2*p[d] - 2)*(2*p[(d+1)%dim] - 2) +
       }
     std::cout << "E order of convergence: " << oc1 << std::endl;
   }
-  // my_try
-  /*
-    DataOutBase::EpsFlags eps_flags;
-    eps_flags.z_scaling = 4;
-
-    DataOut<dim> data_out;
-    data_out.set_flags (eps_flags);
-
-    data_out.attach_dof_handler (dof_handler);
-    data_out.add_data_vector (solution, "solution");
-    data_out.build_patches ();
-
-    std::ofstream output ("final-solution.eps");
-    data_out.write_eps (output);
-  //
-  */
 } // namespace StepBiharmonic
+
+
 
 int main(int argc, char *argv[])
 {
@@ -1622,15 +1413,6 @@ int main(int argc, char *argv[])
       using namespace dealii;
       using namespace StepBiharmonic;
       using namespace LocalIntegrators;
-
-      // deallog.depth_console (0);
-      /*
-      const std::string logname = "coip_matrix";
-      std::ofstream logfile(logname.c_str());
-      deallog.attach(logfile);
-      deallog.depth_console (0);
-    */
-
 
       Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv);
 
