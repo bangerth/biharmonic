@@ -25,85 +25,85 @@ DEAL_II_NAMESPACE_OPEN
 
 namespace LocalIntegrators
 {
-/**
- * @brief Local integrators related to the Laplacian and its DG formulations
- *
- * @ingroup Integrators
- * @author Guido Kanschat
- * @date 2010
- */
+  /**
+   * @brief Local integrators related to the Laplacian and its DG formulations
+   *
+   * @ingroup Integrators
+   * @author Guido Kanschat
+   * @date 2010
+   */
   namespace Biharmonic
   {
-/* Calculation of the second order interior face residual 
-*/
-template<int dim>
+    /* Calculation of the second order interior face residual
+     */
+    template<int dim>
 
-Tensor<1, dim>
-second_partial_n(const Tensor<1,dim>& normal,const Tensor<2,dim>& D)
-{
-  //Tensor<1,dim> result ;
-  //contract(result, normal,D);
-  //return result ;
- return contract<1,0>(D,normal);
-}
+    Tensor<1, dim>
+    second_partial_n(const Tensor<1,dim>& normal,const Tensor<2,dim>& D)
+    {
+      //Tensor<1,dim> result ;
+      //contract(result, normal,D);
+      //return result ;
+      return contract<1,0>(D,normal);
+    }
 
 
-/**
- * Biharmonic operator in weak form, namely on the cell <i>Z</i> the matrix
- * \f[
- * \int_Z \nu \nabla^2 u \cdot \nabla^2 v \, dx.
- * \f]
- *
- * The FiniteElement in <tt>fe</tt> may be scalar or vector valued. In
- * the latter case, the Laplacian is applied to each component
- * separately.
- *
- * @ingroup Integrators
- * @author Natasha Sharma
- * @date 2012
- */
+    /**
+     * Biharmonic operator in weak form, namely on the cell <i>Z</i> the matrix
+     * \f[
+     * \int_Z \nu \nabla^2 u \cdot \nabla^2 v \, dx.
+     * \f]
+     *
+     * The FiniteElement in <tt>fe</tt> may be scalar or vector valued. In
+     * the latter case, the Laplacian is applied to each component
+     * separately.
+     *
+     * @ingroup Integrators
+     * @author Natasha Sharma
+     * @date 2012
+     */
     template<int dim>
     void cell_matrix (
-      FullMatrix<double>& M,
-      const FEValuesBase<dim>& fe,
-      const double factor = 1.)
+        FullMatrix<double>& M,
+        const FEValuesBase<dim>& fe,
+        const double factor = 1.)
     {
       const unsigned int n_dofs = fe.dofs_per_cell;
       const unsigned int n_components = fe.get_fe().n_components();
-      
+
       AssertDimension(M.m(), n_dofs);
       AssertDimension(M.n(), n_dofs);
-      
+
       for (unsigned k=0;k<fe.n_quadrature_points;++k)
         {
           const double dx = fe.JxW(k) * factor;
           for (unsigned i=0;i<n_dofs;++i)
-	    for (unsigned j=0;j<n_dofs;++j)
-	      for (unsigned int d=0;d<n_components;++d)
-		M(i,j) += dx *
-			  //double_contract(fe.shape_hessian_component(j,k,d), fe.shape_hessian_component(i,k,d));
-			  scalar_product(fe.shape_hessian_component(j,k,d), fe.shape_hessian_component(i,k,d));
+            for (unsigned j=0;j<n_dofs;++j)
+              for (unsigned int d=0;d<n_components;++d)
+                M(i,j) += dx *
+                //double_contract(fe.shape_hessian_component(j,k,d), fe.shape_hessian_component(i,k,d));
+                scalar_product(fe.shape_hessian_component(j,k,d), fe.shape_hessian_component(i,k,d));
         }
     }
 
-/**
- * The matrix associated with the bilinear form
- * \f[
- * \int_Z \nu \Delta u \cdot \Delta v \, dx.
- * \f] 
- */
+    /**
+     * The matrix associated with the bilinear form
+     * \f[
+     * \int_Z \nu \Delta u \cdot \Delta v \, dx.
+     * \f]
+     */
     template<int dim>
     void delta_delta_matrix (
-      FullMatrix<double>& M,
-      const FEValuesBase<dim>& fe,
-      const double factor = 1.)
+        FullMatrix<double>& M,
+        const FEValuesBase<dim>& fe,
+        const double factor = 1.)
     {
       const unsigned int n_dofs = fe.dofs_per_cell;
       const unsigned int n_components = fe.get_fe().n_components();
-      
+
       AssertDimension(M.m(), n_dofs);
       AssertDimension(M.n(), n_dofs);
-      
+
       for (unsigned k=0;k<fe.n_quadrature_points;++k)
         {
           const double dx = fe.JxW(k) * factor;
@@ -112,37 +112,37 @@ second_partial_n(const Tensor<1,dim>& normal,const Tensor<2,dim>& D)
               for (unsigned j=0;j<n_dofs;++j)
                 for (unsigned int c=0;c<n_components;++c)
                   M(i,j) += dx
-			    * trace(fe.shape_hessian_component(j,k,c))
-			    * trace(fe.shape_hessian_component(i,k,c));
+                  * trace(fe.shape_hessian_component(j,k,c))
+              * trace(fe.shape_hessian_component(i,k,c));
             }
         }
     }
-/**
- * Weak boundary condition of Nitsche type for the biharmonic equation, namely on the face <i>F</i> the matrix
- * @f[
- * \int_F \Bigl(\gamma u v - \partial_n u v - u \partial_n v\Bigr)\;ds.
- * @f]
- *
- * Here, $\gamma$ is the <tt>penalty</tt> parameter suitably computed
- * with compute_penalty().
- *
- * @ingroup Integrators
- * @author Natasha Sharma
- * @date 2012
- */
+    /**
+     * Weak boundary condition of Nitsche type for the biharmonic equation, namely on the face <i>F</i> the matrix
+     * @f[
+     * \int_F \Bigl(\gamma u v - \partial_n u v - u \partial_n v\Bigr)\;ds.
+     * @f]
+     *
+     * Here, $\gamma$ is the <tt>penalty</tt> parameter suitably computed
+     * with compute_penalty().
+     *
+     * @ingroup Integrators
+     * @author Natasha Sharma
+     * @date 2012
+     */
     template <int dim>
     void weak_boundary_matrix (
-      FullMatrix<double>& M,
-      const FEValuesBase<dim>& fe,
-      double penalty,
-      double factor = 1.)
+        FullMatrix<double>& M,
+        const FEValuesBase<dim>& fe,
+        double penalty,
+        double factor = 1.)
     {
       const unsigned int n_dofs = fe.dofs_per_cell;
       const unsigned int n_comp = fe.get_fe().n_components();
 
       AssertDimension (M.m(), n_dofs);
       AssertDimension (M.n(), n_dofs);
-      
+
       for (unsigned k=0;k<fe.n_quadrature_points;++k)
         {
           const double dx = fe.JxW(k) * factor;
@@ -151,44 +151,44 @@ second_partial_n(const Tensor<1,dim>& normal,const Tensor<2,dim>& D)
             for (unsigned j=0;j<n_dofs;++j)
               for (unsigned int d=0;d<n_comp;++d)
                 M(i,j) += dx *
-		  (2.*( n * fe.shape_grad_component(i,k,d)) * penalty * (n * fe.shape_grad_component(j,k,d))
-		   - contract3(n , fe.shape_hessian_component(i,k,d), n) * (n * fe.shape_grad_component(j,k,d))
-		   - contract3(n , fe.shape_hessian_component(j,k,d), n) * (n * fe.shape_grad_component(i,k,d)));
+                (2.*( n * fe.shape_grad_component(i,k,d)) * penalty * (n * fe.shape_grad_component(j,k,d))
+                    - contract3(n , fe.shape_hessian_component(i,k,d), n) * (n * fe.shape_grad_component(j,k,d))
+                    - contract3(n , fe.shape_hessian_component(j,k,d), n) * (n * fe.shape_grad_component(i,k,d)));
         }
     }
 
 
-/**
- * Flux for the interior penalty method for the Laplacian, namely on
- * the face <i>F</i> the matrices associated with the bilinear form
- * @f[
- * \int_F \Bigl( \gamma [u][v] - \{\nabla u\}[v\mathbf n] - [u\mathbf
- * n]\{\nabla v\} \Bigr) \; ds.
- * @f]
- *
- * The penalty parameter should always be the mean value of the
- * penalties needed for stability on each side. In the case of
- * constant coefficients, it can be computed using compute_penalty().
- *
- * If <tt>factor2</tt> is missing or negative, the factor is assumed
- * the same on both sides. If factors differ, note that the penalty
- * parameter has to be computed accordingly.
- *
- * @ingroup Integrators
- * @author Natasha Sharma
- * @date 2012
- */
+    /**
+     * Flux for the interior penalty method for the Laplacian, namely on
+     * the face <i>F</i> the matrices associated with the bilinear form
+     * @f[
+     * \int_F \Bigl( \gamma [u][v] - \{\nabla u\}[v\mathbf n] - [u\mathbf
+     * n]\{\nabla v\} \Bigr) \; ds.
+     * @f]
+     *
+     * The penalty parameter should always be the mean value of the
+     * penalties needed for stability on each side. In the case of
+     * constant coefficients, it can be computed using compute_penalty().
+     *
+     * If <tt>factor2</tt> is missing or negative, the factor is assumed
+     * the same on both sides. If factors differ, note that the penalty
+     * parameter has to be computed accordingly.
+     *
+     * @ingroup Integrators
+     * @author Natasha Sharma
+     * @date 2012
+     */
     template <int dim>
     void ip_matrix (
-      FullMatrix<double>& M11,
-      FullMatrix<double>& M12,
-      FullMatrix<double>& M21,
-      FullMatrix<double>& M22,
-      const FEValuesBase<dim>& fe1,
-      const FEValuesBase<dim>& fe2,
-      double penalty,
-      double factor1 = 1.,
-      double factor2 = -1.)
+        FullMatrix<double>& M11,
+        FullMatrix<double>& M12,
+        FullMatrix<double>& M21,
+        FullMatrix<double>& M22,
+        const FEValuesBase<dim>& fe1,
+        const FEValuesBase<dim>& fe2,
+        double penalty,
+        double factor1 = 1.,
+        double factor2 = -1.)
     {
       const unsigned int n_dofs = fe1.dofs_per_cell;
       AssertDimension(M11.n(), n_dofs);
@@ -204,61 +204,61 @@ second_partial_n(const Tensor<1,dim>& normal,const Tensor<2,dim>& D)
       const double fe = (factor2 < 0) ? factor1 : factor2;
 
       for (unsigned k=0;k<fe1.n_quadrature_points;++k)
-	{
-	  const double dx = fe1.JxW(k);
-	  const Tensor<1,dim>& n = fe1.normal_vector(k);
-	  for (unsigned int d=0;d<fe1.get_fe().n_components();++d)
-	    {
-	      for (unsigned i=0;i<n_dofs;++i)
-		{
-		  for (unsigned j=0;j<n_dofs;++j)
-		    {
-		    
-		      const double dnvi   = n * fe1.shape_grad_component(i,k,d);
-		      const double dnui   = n * fe1.shape_grad_component(j,k,d);
-		      const double ddnvi = contract3(n, fe1.shape_hessian_component(i,k,d),n);
-		      const double ddnui = contract3(n, fe1.shape_hessian_component(j,k,d),n);
+        {
+          const double dx = fe1.JxW(k);
+          const Tensor<1,dim>& n = fe1.normal_vector(k);
+          for (unsigned int d=0;d<fe1.get_fe().n_components();++d)
+            {
+              for (unsigned i=0;i<n_dofs;++i)
+                {
+                  for (unsigned j=0;j<n_dofs;++j)
+                    {
 
-		      const double dnve = -(n * fe2.shape_grad_component(i,k,d));
-		      const double dnue = -(n * fe2.shape_grad_component(j,k,d));
-		      const double ddnve = contract3(n, fe2.shape_hessian_component(i,k,d), n);
-		      const double ddnue = contract3(n, fe2.shape_hessian_component(j,k,d), n);
-                
-                M11(i,j) += dx*(-.5*ddnvi*dnui-.5*ddnui*dnvi+penalty*dnui*dnvi);
-                M12(i,j) += dx*(-.5*ddnvi*dnue-.5*ddnue*dnvi+penalty*dnue*dnvi);
-                M21(i,j) += dx*(-.5*fe*ddnve*dnui-.5*ddnui*dnve+penalty*dnui*dnve);
-                M22(i,j) += dx*(-.5*fe*ddnve*dnue-.5*ddnue*dnve+penalty*dnue*dnve);
-		      
-//		      M11(i,j) += dx*(-.5*fi*ddnvi*dnui-.5*fi*ddnui*dnvi+penalty*dnui*dnvi);
-//		      M12(i,j) += dx*(-.5*fi*ddnvi*dnue-.5*fe*ddnue*dnvi+penalty*dnue*dnvi);
-//		      M21(i,j) += dx*(-.5*fe*ddnve*dnui-.5*fi*ddnui*dnve+penalty*dnui*dnve);
-//		      M22(i,j) += dx*(-.5*fe*ddnve*dnue-.5*fe*ddnue*dnve+penalty*dnue*dnve);
-		    }
-		}
-	    }
-	}
+                      const double dnvi   = n * fe1.shape_grad_component(i,k,d);
+                      const double dnui   = n * fe1.shape_grad_component(j,k,d);
+                      const double ddnvi = contract3(n, fe1.shape_hessian_component(i,k,d),n);
+                      const double ddnui = contract3(n, fe1.shape_hessian_component(j,k,d),n);
+
+                      const double dnve = -(n * fe2.shape_grad_component(i,k,d));
+                      const double dnue = -(n * fe2.shape_grad_component(j,k,d));
+                      const double ddnve = contract3(n, fe2.shape_hessian_component(i,k,d), n);
+                      const double ddnue = contract3(n, fe2.shape_hessian_component(j,k,d), n);
+
+                      M11(i,j) += dx*(-.5*ddnvi*dnui-.5*ddnui*dnvi+penalty*dnui*dnvi);
+                      M12(i,j) += dx*(-.5*ddnvi*dnue-.5*ddnue*dnvi+penalty*dnue*dnvi);
+                      M21(i,j) += dx*(-.5*fe*ddnve*dnui-.5*ddnui*dnve+penalty*dnui*dnve);
+                      M22(i,j) += dx*(-.5*fe*ddnve*dnue-.5*ddnue*dnve+penalty*dnue*dnve);
+
+                      //		      M11(i,j) += dx*(-.5*fi*ddnvi*dnui-.5*fi*ddnui*dnvi+penalty*dnui*dnvi);
+                      //		      M12(i,j) += dx*(-.5*fi*ddnvi*dnue-.5*fe*ddnue*dnvi+penalty*dnue*dnvi);
+                      //		      M21(i,j) += dx*(-.5*fe*ddnve*dnui-.5*fi*ddnui*dnve+penalty*dnui*dnve);
+                      //		      M22(i,j) += dx*(-.5*fe*ddnve*dnue-.5*fe*ddnue*dnve+penalty*dnue*dnve);
+                    }
+                }
+            }
+        }
     }
-    
-/**
- * Auxiliary function computing the penalty parameter for interior
- * penalty methods on rectangles.
- *
- * Computation is done in two steps: first, we compute on each cell
- * <i>Z<sub>i</sub></i> the value <i>P<sub>i</sub> =
- * p<sub>i</sub>(p<sub>i</sub>+1)/h<sub>i</sub></i>, where <i>p<sub>i</sub></i> is
- * the polynomial degree on cell <i>Z<sub>i</sub></i> and
- * <i>h<sub>i</sub></i> is the length of <i>Z<sub>i</sub></i>
- * orthogonal to the current face.
- *
- * @author Guido Kanschat
- * @date 2010
- */
+
+    /**
+     * Auxiliary function computing the penalty parameter for interior
+     * penalty methods on rectangles.
+     *
+     * Computation is done in two steps: first, we compute on each cell
+     * <i>Z<sub>i</sub></i> the value <i>P<sub>i</sub> =
+     * p<sub>i</sub>(p<sub>i</sub>+1)/h<sub>i</sub></i>, where <i>p<sub>i</sub></i> is
+     * the polynomial degree on cell <i>Z<sub>i</sub></i> and
+     * <i>h<sub>i</sub></i> is the length of <i>Z<sub>i</sub></i>
+     * orthogonal to the current face.
+     *
+     * @author Guido Kanschat
+     * @date 2010
+     */
     template <int dim>
     double compute_penalty(
-      const MeshWorker::DoFInfo<dim>& dinfo1,
-      const MeshWorker::DoFInfo<dim>& dinfo2,
-      unsigned int deg1,
-      unsigned int deg2)
+        const MeshWorker::DoFInfo<dim>& dinfo1,
+        const MeshWorker::DoFInfo<dim>& dinfo2,
+        unsigned int deg1,
+        unsigned int deg2)
     {
       const unsigned int normal1 = GeometryInfo<dim>::unit_normal_direction[dinfo1.face_number];
       const unsigned int normal2 = GeometryInfo<dim>::unit_normal_direction[dinfo2.face_number];

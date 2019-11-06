@@ -57,7 +57,6 @@ TODO:
 
 // The include file for local integrators associated with the Laplacian
 #include <deal.II/integrators/laplace.h>
-//#include <deal.II/integrators/biharmonic.h>
 
 
 
@@ -81,7 +80,7 @@ namespace StepBiharmonic
   using namespace dealii;
   using ConstraintMatrix = AffineConstraints<double>;
 
-  const unsigned int MaxCycle = 6;
+  const unsigned int MaxCycle = 4;
 
 
 
@@ -252,9 +251,7 @@ namespace StepBiharmonic
   class BiharmonicProblem
   {
   public:
-    typedef MeshWorker::IntegrationInfo<dim> CellInfo;
-
-    BiharmonicProblem(const FiniteElement<dim> &fe);
+    BiharmonicProblem(const unsigned int fe_degree);
 
     void run();
 
@@ -263,29 +260,26 @@ namespace StepBiharmonic
     void   setup_system();
     void   assemble_system();
     void   solve();
-    void   error();
+    void   compute_errors();
     void   output_results(const unsigned int iteration) const;
 
     Triangulation<dim>        triangulation;
     const MappingQ<dim>       mapping;
-    const FiniteElement<dim> &fe;
+    const FE_Q<dim>           fe;
     DoFHandler<dim>           dof_handler;
     ConstraintMatrix          constraints;
 
     SparsityPattern      sparsity_pattern;
-    SparseMatrix<double> system_matrix, complete_system_matrix;
-
+    SparseMatrix<double> system_matrix;
 
     Vector<double>      solution;
     Vector<double>      system_rhs;
-    Vector<double>      complete_system_rhs;
-    Vector<double>      diagonal_of_mass_matrix;
   };
 
   template <int dim>
-  BiharmonicProblem<dim>::BiharmonicProblem(const FiniteElement<dim> &fe)
-    : mapping(/*2*/ 1)
-    , fe(fe)
+  BiharmonicProblem<dim>::BiharmonicProblem(const unsigned int fe_degree)
+    : mapping(1)
+    , fe(fe_degree)
     , dof_handler(triangulation)
   {}
 
@@ -320,7 +314,6 @@ namespace StepBiharmonic
                                              0,
                                              Solution<dim>(),
                                              constraints);
-
     constraints.close();
 
 
@@ -330,12 +323,10 @@ namespace StepBiharmonic
                                          constraints,
                                          true);
     sparsity_pattern.copy_from(c_sparsity);
-
     system_matrix.reinit(sparsity_pattern);
-    complete_system_matrix.reinit(sparsity_pattern);
+
     solution.reinit(dof_handler.n_dofs());
     system_rhs.reinit(dof_handler.n_dofs());
-    complete_system_rhs.reinit(dof_handler.n_dofs());
   }
 
 
@@ -502,7 +493,7 @@ namespace StepBiharmonic
       }
 
 
-        for (unsigned int qpoint = 0; qpoint < q_points.size(); ++qpoint)
+      for (unsigned int qpoint = 0; qpoint < q_points.size(); ++qpoint)
         {
           // \int_F {grad^2 u n n } [grad v n]
           //   - {grad^2 v n n } [grad u n]
@@ -672,14 +663,15 @@ namespace StepBiharmonic
 
 
   template <int dim>
-  void BiharmonicProblem<dim>::error()
+  void BiharmonicProblem<dim>::compute_errors()
   {
     const unsigned int n_gauss_points =
       dof_handler.get_fe().tensor_degree() + 1;
     
     {
       Vector<float> norm_per_cell(triangulation.n_active_cells());
-      VectorTools::integrate_difference(dof_handler,
+      VectorTools::integrate_difference(mapping,
+                                        dof_handler,
                                         solution,
                                         Solution<dim>(),
                                         norm_per_cell,
@@ -694,7 +686,8 @@ namespace StepBiharmonic
 
     {
       Vector<float> norm_per_cell(triangulation.n_active_cells());
-      VectorTools::integrate_difference(dof_handler,
+      VectorTools::integrate_difference(mapping,
+                                        dof_handler,
                                         solution,
                                         Solution<dim>(),
                                         norm_per_cell,
@@ -715,7 +708,7 @@ namespace StepBiharmonic
       Solution<dim>     exact_solution;
       Vector<double>    error_per_cell(triangulation.n_active_cells());
 
-      FEValues<dim> fe_values( // mappingfe,
+      FEValues<dim> fe_values(mapping,
           fe,
           quadrature_formula,
           update_values | update_hessians | update_quadrature_points |
@@ -741,7 +734,7 @@ namespace StepBiharmonic
             }
         }
       const double error_norm = std::sqrt(error_per_cell.l2_norm());
-      std::cout << "   Error in the H2 seminorm " << error_norm << std::endl;
+      std::cout << "   Error in the H2 seminorm: " << error_norm << std::endl;
     }
   }
 
@@ -781,7 +774,7 @@ namespace StepBiharmonic
   template <int dim>
   void BiharmonicProblem<dim>::run()
   {
-    GridGenerator::hyper_cube(triangulation, 0, 1);
+    make_grid ();
 
     for (unsigned int cycle = 0; cycle < MaxCycle; ++cycle)
       {
@@ -797,7 +790,7 @@ namespace StepBiharmonic
 
         output_results(cycle);
 
-        error();
+        compute_errors();
         std::cout << std::endl;
       }
   }
@@ -811,16 +804,17 @@ int main(int argc, char *argv[])
     {
       using namespace dealii;
       using namespace StepBiharmonic;
-      using namespace LocalIntegrators;
 
       Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv);
 
-      int degree = 2; // minimum degree 2
+      unsigned int degree = 2; // minimum degree 2
+
+      // If provided on the command line, override the polynomial degree
+      // by the one given there.
       if (argc > 1)
         degree = Utilities::string_to_int(argv[1]);
-      FE_Q<2> fe1(degree);
-      std::cout << "FE: " << fe1.get_name() << std::endl;
-      BiharmonicProblem<2> my_bi(fe1);
+
+      BiharmonicProblem<2> my_bi(degree);
       my_bi.run();
     }
   catch (std::exception &exc)
