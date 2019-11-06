@@ -376,9 +376,9 @@ namespace StepBiharmonic
   private:
     void   make_grid();
     void   setup_system();
-    void   assemble();
+    void   assemble_system();
     void   solve();
-    void   error(const unsigned int cycle);
+    void   error();
     void   output_results(const unsigned int iteration) const;
 
     Triangulation<dim>        triangulation;
@@ -395,12 +395,6 @@ namespace StepBiharmonic
     Vector<double>      system_rhs;
     Vector<double>      complete_system_rhs;
     Vector<double>      diagonal_of_mass_matrix;
-    BlockVector<double> estimates;
-    Vector<double>      errors_list;    // H1er;
-    Vector<double>      errors_list_l2; // H1er;
-    Vector<double>      errors_list_h2; // H1er;
-    Vector<double>      oc1;            //(MaxCycle-1) ;
-    Vector<double>      Nd;
   };
 
   template <int dim>
@@ -408,14 +402,7 @@ namespace StepBiharmonic
     : mapping(/*2*/ 1)
     , fe(fe)
     , dof_handler(triangulation)
-    , estimates(1)
-  {
-    oc1.reinit(MaxCycle - 1);
-    errors_list.reinit(MaxCycle);
-    errors_list_l2.reinit(MaxCycle);
-    errors_list_h2.reinit(MaxCycle);
-    Nd.reinit(MaxCycle);
-  }
+  {}
 
 
 
@@ -537,7 +524,7 @@ namespace StepBiharmonic
 
 
   template <int dim>
-  void BiharmonicProblem<dim>::assemble()
+  void BiharmonicProblem<dim>::assemble_system()
   {
     typedef decltype(dof_handler.begin_active()) Iterator;
     const RightHandSide<dim>                     right_hand_side;
@@ -800,7 +787,7 @@ namespace StepBiharmonic
 
 
   template <int dim>
-  void BiharmonicProblem<dim>::error(const unsigned int cycle)
+  void BiharmonicProblem<dim>::error()
   {
     BlockVector<double> errors(2);
     errors.block(0).reinit(triangulation.n_active_cells());
@@ -844,9 +831,6 @@ namespace StepBiharmonic
                                            assembler);
     std::cout << "   energy-error: " << errors.block(0).l2_norm() << std::endl;
     std::cout << "   L2-error: " << errors.block(1).l2_norm() << std::endl;
-
-    errors_list(cycle)    = (errors.block(0).l2_norm());
-    errors_list_l2(cycle) = errors.block(1).l2_norm();
 
     {
       Vector<float> norm_per_cell(triangulation.n_active_cells());
@@ -896,7 +880,6 @@ namespace StepBiharmonic
           }
         const double h2_semi = std::sqrt(error_per_cell.l2_norm());
         std::cout << "   h2semi timo " << h2_semi << std::endl;
-        errors_list_h2(cycle) = h2_semi;
       }
       //      VectorTools::integrate_difference(dof_handler,
       //                                        solution,
@@ -959,44 +942,14 @@ namespace StepBiharmonic
         triangulation.refine_global(1);
         setup_system();
 
-        Nd(cycle) = dof_handler.n_dofs();
-
-        assemble();
+        assemble_system();
         solve();
 
         output_results(cycle);
 
-        error(cycle);
+        error();
         std::cout << std::endl;
       }
-
-    std::cout << std::endl << std::endl;
-
-    std::cout << "DoFs:    " << Nd << std::endl;
-    std::cout << "L2 error:  " << errors_list_l2 << std::endl;
-    std::cout << "H2 error:  " << errors_list_h2 << std::endl;
-    std::cout << "E error:  " << errors_list << std::endl;
-
-    for (unsigned int k = 0; k < MaxCycle - 1; ++k)
-      {
-        oc1(k) = std::log(errors_list_l2(k) / errors_list_l2(k + 1)) /
-                 std::log(2); // Nd(k+1)/Nd(k));
-      }
-    std::cout << "L2 order of convergence: " << oc1 << std::endl;
-
-    for (unsigned int k = 0; k < MaxCycle - 1; ++k)
-      {
-        oc1(k) = std::log(errors_list_h2(k) / errors_list_h2(k + 1)) /
-                 std::log(2); // Nd(k+1)/Nd(k));
-      }
-    std::cout << "H2 order of convergence: " << oc1 << std::endl;
-
-    for (unsigned int k = 0; k < MaxCycle - 1; ++k)
-      {
-        oc1(k) = std::log(errors_list(k) / errors_list(k + 1)) /
-                 std::log(2); // Nd(k+1)/Nd(k));
-      }
-    std::cout << "E order of convergence: " << oc1 << std::endl;
   }
 } // namespace StepBiharmonic
 
