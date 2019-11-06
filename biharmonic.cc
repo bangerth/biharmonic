@@ -10,36 +10,22 @@ TODO:
 */
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/function.h>
-#include <deal.II/base/index_set.h>
 
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/vector.h>
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/lac/solver_cg.h>
-#include <deal.II/lac/block_vector.h>
-#include <deal.II/lac/solver_gmres.h>
 #include <deal.II/lac/sparse_matrix.h>
-#include <deal.II/lac/precondition.h>
 #include <deal.II/lac/sparse_direct.h>
-
-#include <deal.II/numerics/matrix_tools.h>
 
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/tria_accessor.h>
 #include <deal.II/grid/tria_iterator.h>
-#include <deal.II/grid/grid_refinement.h>
-
-//
-#include <deal.II/grid/grid_out.h>
-//
-
 
 #include <deal.II/fe/fe_interface_values.h>
 #include <deal.II/fe/fe_q.h>
-#include <deal.II/fe/fe_dgp.h>
-#include <deal.II/fe/fe_dgq.h>
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/fe/mapping_q.h>
 
@@ -47,64 +33,46 @@ TODO:
 #include <deal.II/dofs/dof_accessor.h>
 #include <deal.II/dofs/dof_tools.h>
 
-
-// The include files for using the MeshWorker framework
-#include <deal.II/meshworker/dof_info.h>
-#include <deal.II/meshworker/integration_info.h>
-#include <deal.II/meshworker/assembler.h>
-#include <deal.II/meshworker/loop.h>
 #include <deal.II/meshworker/mesh_loop.h>
 
-// The include file for local integrators associated with the Laplacian
-#include <deal.II/integrators/laplace.h>
-
-
-
-#include "biharmonic.h"
-
-#include <deal.II/base/function_lib.h>
 #include <deal.II/numerics/vector_tools.h>
 #include <deal.II/numerics/data_out.h>
 
 
 #include <fstream>
 #include <iostream>
-#include <list>
 
-#ifndef PI
-#  define PI 3.14159265358979323846
-#endif
 
 namespace StepBiharmonic
 {
   using namespace dealii;
-  using ConstraintMatrix = AffineConstraints<double>;
-
-  const unsigned int MaxCycle = 4;
-
+  using numbers::PI;
 
 
   namespace simple
   {
+    /**
+     * An exact solution of the form
+     * $ u(x,y) = \sin(\pi x) \sin(\pi y) $.
+     */
     template <int dim>
     class Solution : public Function<dim>
     {
     public:
-      Solution()
-        : Function<dim>()
-      {}
+      static_assert (dim==2, "Only dim==2 is implemented");
+
       virtual double value(const Point<dim> & p,
                            const unsigned int /*component*/ = 0) const
       {
-        return sin(PI * p[0]) * sin(PI * p[1]);
+        return std::sin(PI * p[0]) * std::sin(PI * p[1]);
       }
 
       virtual Tensor<1, dim> gradient(const Point<dim> & p,
                                       const unsigned int /*component*/ = 0) const
       {
         Tensor<1, dim> r;
-        r[0] = PI * cos(PI * p[0]) * sin(PI * p[1]);
-        r[1] = PI * cos(PI * p[1]) * sin(PI * p[0]);
+        r[0] = PI * std::cos(PI * p[0]) * std::sin(PI * p[1]);
+        r[1] = PI * std::cos(PI * p[1]) * std::sin(PI * p[0]);
         return r;
       }
 
@@ -117,131 +85,118 @@ namespace StepBiharmonic
             const double x = points[i][0];
             const double y = points[i][1];
 
-            hessians[i][0][0] = -PI * PI * sin(PI * x) * sin(PI * y);
-            hessians[i][0][1] = PI * PI * cos(PI * x) * cos(PI * y);
-            hessians[i][1][1] = -PI * PI * sin(PI * x) * sin(PI * y);
+            hessians[i][0][0] = -PI * PI * std::sin(PI * x) * std::sin(PI * y);
+            hessians[i][0][1] =  PI * PI * std::cos(PI * x) * std::cos(PI * y);
+            hessians[i][1][1] = -PI * PI * std::sin(PI * x) * std::sin(PI * y);
           }
       }
     };
 
 
-
+    /**
+     * The corresponding right hand side.
+     */
     template <int dim>
     class RightHandSide : public Function<dim>
     {
     public:
-      RightHandSide()
-        : Function<dim>()
-      {}
+      static_assert (dim==2, "Only dim==2 is implemented");
 
       virtual double value(const Point<dim> & p,
                            const unsigned int /*component*/ = 0) const
 
       {
-        return 4 * std::pow(PI, 4.0) * sin(PI * p[0]) * sin(PI * p[1]);
+        return 4 * std::pow(PI, 4.0) * std::sin(PI * p[0]) * std::sin(PI * p[1]);
       }
     };
   } // namespace simple
 
+
   namespace sin4
   {
+    /**
+     * Another class that implements a solution, this time of the form
+     * $ u(x,y) = [\sin(\pi x) \sin(\pi y)]^2 $.
+     */
     template <int dim>
     class Solution : public Function<dim>
     {
     public:
-      Solution()
-        : Function<dim>()
-      {}
+      static_assert (dim==2, "Only dim==2 is implemented");
+
       virtual double         value(const Point<dim> & p,
-                                   const unsigned int component = 0) const;
+                                   const unsigned int /*component*/ = 0) const
+      {
+        return std::sin(PI * p(0)) * std::sin(PI * p(0))
+               * std::sin(PI * p(1)) * std::sin(PI * p(1));
+      }
+
       virtual Tensor<1, dim> gradient(const Point<dim> & p,
-                                      const unsigned int component = 0) const;
+                                      const unsigned int /*component*/ = 0) const
+        {
+          Tensor<1, dim> return_value;
+          return_value[0] = 2 * PI * std::cos(PI * p(0)) * std::sin(PI * p(0)) *
+                            std::sin(PI * p(1)) * std::sin(PI * p(1));
+          return_value[1] = 2 * PI * std::cos(PI * p(1)) * std::sin(PI * p(0)) *
+                            std::sin(PI * p(0)) * std::sin(PI * p(1));
+          return return_value;
+        }
+
       virtual void           hessian_list(const std::vector<Point<dim>> &       points,
                                           std::vector<SymmetricTensor<2, dim>> &hessians,
-                                          const unsigned int component = 0) const;
+                                          const unsigned int /*component*/ = 0) const
+      {
+        for (unsigned i = 0; i < points.size(); ++i)
+          {
+            Tensor<1, dim> p = points[i];
+
+            for (unsigned int d = 0; d < dim; ++d)
+              {
+                hessians[i][d][d] =
+                  2 * PI * PI * std::cos(PI * p[d]) * std::cos(PI * p[d]) *
+                    std::sin(PI * p[(d + 1) % dim]) *
+                    std::sin(PI * p[(d + 1) % dim]) -
+                  2 * PI * PI * std::sin(PI * p[d]) * std::sin(PI * p[d]) *
+                    std::sin(PI * p[(d + 1) % dim]) *
+                    std::sin(PI * p[(d + 1) % dim]);
+                hessians[i][d][(d + 1) % dim] =
+                  4 * PI * PI * std::cos(PI * p[d]) *
+                  std::cos(PI * p[(d + 1) % dim]) * std::sin(PI * p[d]) *
+                  std::sin(PI * p[(d + 1) % dim]);
+                hessians[i][(d + 1) % dim][d] = hessians[i][d][(d + 1) % dim];
+              }
+          }
+      }
     };
 
 
-    template <int dim>
-    double Solution<dim>::value(const Point<dim> &p, const unsigned int) const
-    {
-      return std::sin(PI * p(0)) * std::sin(PI * p(0)) * std::sin(PI * p(1)) *
-             std::sin(PI * p(1));
-    }
-
-    template <int dim>
-    Tensor<1, dim> Solution<dim>::gradient(const Point<dim> &p,
-                                           const unsigned int) const
-    {
-      Tensor<1, dim> return_value;
-
-      return_value[0] = 2 * PI * std::cos(PI * p(0)) * std::sin(PI * p(0)) *
-                        std::sin(PI * p(1)) * std::sin(PI * p(1));
-      return_value[1] = 2 * PI * std::cos(PI * p(1)) * std::sin(PI * p(0)) *
-                        std::sin(PI * p(0)) * std::sin(PI * p(1));
-      return return_value;
-    }
-
-    template <int dim>
-    void
-    Solution<dim>::hessian_list(const std::vector<Point<dim>> &       points,
-                                std::vector<SymmetricTensor<2, dim>> &hessians,
-                                const unsigned int) const
-    {
-      Tensor<1, dim> p;
-      for (unsigned i = 0; i < points.size(); ++i)
-        {
-          for (unsigned int d = 0; d < dim; ++d)
-            {
-              p[d] = points[i][d];
-            } // d-loop
-          for (unsigned int d = 0; d < dim; ++d)
-            {
-              hessians[i][d][d] =
-                2 * PI * PI * std::cos(PI * p[d]) * std::cos(PI * p[d]) *
-                  std::sin(PI * p[(d + 1) % dim]) *
-                  std::sin(PI * p[(d + 1) % dim]) -
-                2 * PI * PI * std::sin(PI * p[d]) * std::sin(PI * p[d]) *
-                  std::sin(PI * p[(d + 1) % dim]) *
-                  std::sin(PI * p[(d + 1) % dim]);
-              hessians[i][d][(d + 1) % dim] =
-                4 * PI * PI * std::cos(PI * p[d]) *
-                std::cos(PI * p[(d + 1) % dim]) * std::sin(PI * p[d]) *
-                std::sin(PI * p[(d + 1) % dim]);
-              hessians[i][(d + 1) % dim][d] = hessians[i][d][(d + 1) % dim];
-            }
-        }
-    }
-
+    /**
+     * The corresponding right hand side.
+     */
     template <int dim>
     class RightHandSide : public Function<dim>
     {
     public:
-      RightHandSide()
-        : Function<dim>()
-      {}
+      static_assert (dim==2, "Only dim==2 is implemented");
 
       virtual double value(const Point<dim> & p,
-                           const unsigned int component = 0) const;
+                           const unsigned int component = 0) const
+      {
+        Assert(component == 0, ExcNotImplemented());
+
+        return (8 * std::pow(PI, 4) *
+                (8 * std::sin(PI * p(0)) * std::sin(PI * p(0)) *
+                   std::sin(PI * p(1)) * std::sin(PI * p(1)) -
+                 3 * std::sin(PI * p(0)) * std::sin(PI * p(0)) -
+                 3 * std::sin(PI * p(1)) * std::sin(PI * p(1)) + 1));
+      }
     };
-
-    template <int dim>
-    double RightHandSide<dim>::value(const Point<dim> & p,
-                                     const unsigned int component) const
-    {
-      Assert(component == 0, ExcNotImplemented());
-
-      return (8 * std::pow(PI, 4) *
-              (8 * std::sin(PI * p(0)) * std::sin(PI * p(0)) *
-                 std::sin(PI * p(1)) * std::sin(PI * p(1)) -
-               3 * std::sin(PI * p(0)) * std::sin(PI * p(0)) -
-               3 * std::sin(PI * p(1)) * std::sin(PI * p(1)) + 1));
-    }
   } // namespace sin4
 
 
-  using namespace simple;
-  // using namespace sin4;
+  // Select which solution (and corresponding right hand sides to choose:
+  // using namespace simple;
+  using namespace sin4;
 
 
 
@@ -267,7 +222,7 @@ namespace StepBiharmonic
     const MappingQ<dim>       mapping;
     const FE_Q<dim>           fe;
     DoFHandler<dim>           dof_handler;
-    ConstraintMatrix          constraints;
+    AffineConstraints<double> constraints;
 
     SparsityPattern      sparsity_pattern;
     SparseMatrix<double> system_matrix;
@@ -776,9 +731,10 @@ namespace StepBiharmonic
   {
     make_grid ();
 
-    for (unsigned int cycle = 0; cycle < MaxCycle; ++cycle)
+    const unsigned int n_cycles = 4;
+    for (unsigned int cycle = 0; cycle < n_cycles; ++cycle)
       {
-        std::cout << "Cycle: " << cycle << " of " << MaxCycle << std::endl;
+        std::cout << "Cycle: " << cycle << " of " << n_cycles << std::endl;
 
 
 
