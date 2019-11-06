@@ -246,121 +246,6 @@ namespace StepBiharmonic
 
 
 
-  template <int dim>
-  class ErrorIntegrator : public MeshWorker::LocalIntegrator<dim>
-  {
-  public:
-    void cell(MeshWorker::DoFInfo<dim> &                 dinfo,
-              typename MeshWorker::IntegrationInfo<dim> &info) const;
-    void boundary(MeshWorker::DoFInfo<dim> &                 dinfo,
-                  typename MeshWorker::IntegrationInfo<dim> &info) const;
-    void face(MeshWorker::DoFInfo<dim> &                 dinfo1,
-              MeshWorker::DoFInfo<dim> &                 dinfo2,
-              typename MeshWorker::IntegrationInfo<dim> &info1,
-              typename MeshWorker::IntegrationInfo<dim> &info2) const;
-  };
-  template <int dim>
-  void ErrorIntegrator<dim>::cell(
-    MeshWorker::DoFInfo<dim> &                 dinfo,
-    typename MeshWorker::IntegrationInfo<dim> &info) const
-  {
-    const FEValuesBase<dim> &   fe = info.fe_values();
-    std::vector<double>         exact_values(fe.n_quadrature_points);
-    std::vector<Tensor<1, dim>> exact_gradients(fe.n_quadrature_points);
-    std::vector<SymmetricTensor<2, dim>> exact_hessians(fe.n_quadrature_points);
-
-    const Solution<dim> extsol;
-
-
-    extsol.value_list(fe.get_quadrature_points(), exact_values);
-    extsol.gradient_list(fe.get_quadrature_points(), exact_gradients);
-    extsol.hessian_list(fe.get_quadrature_points(), exact_hessians);
-
-    const std::vector<double> &        uh   = info.values[0][0];
-    const std::vector<Tensor<1, dim>> &Duh  = info.gradients[0][0];
-    const std::vector<Tensor<2, dim>> &DDuh = info.hessians[0][0];
-
-    for (unsigned k = 0; k < fe.n_quadrature_points; ++k)
-      {
-        exact_hessians[k][0][0] -= DDuh[k][0][0];
-        exact_hessians[k][1][1] -= DDuh[k][1][1];
-        exact_hessians[k][1][0] -= DDuh[k][1][0];
-        // exact_hessians[k][0][1] -=DDuh[k][0][1]; exact_hessians is a
-        // symmetric tensor, so don't edit both
-
-        double sum = 0.;
-        for (unsigned int d = 0; d < dim; ++d)
-          {
-            const double diff_grad  = exact_gradients[k][d] - Duh[k][d];
-            const double diff_hess1 = exact_hessians[k][d][d];
-            const double diff_hess2 = exact_hessians[k][d][(d + 1) % dim];
-            sum += (0 * diff_grad * diff_grad + diff_hess1 * diff_hess1 +
-                    diff_hess2 * diff_hess2);
-          }
-        dinfo.value(0) += sum * fe.JxW(k);
-        const double diff = exact_values[k] - uh[k];
-        dinfo.value(1) += diff * diff * fe.JxW(k);
-      }
-    dinfo.value(0) = std::sqrt(dinfo.value(0));
-    dinfo.value(1) = std::sqrt(dinfo.value(1));
-  }
-
-
-  template <int dim>
-  void ErrorIntegrator<dim>::boundary(
-    MeshWorker::DoFInfo<dim> &                 dinfo,
-    typename MeshWorker::IntegrationInfo<dim> &info) const
-  {
-    const Solution<dim> extsol;
-
-
-    const FEValuesBase<dim> &   fe = info.fe_values();
-    std::vector<Tensor<1, dim>> exact_gradients(fe.n_quadrature_points);
-    extsol.gradient_list(fe.get_quadrature_points(), exact_gradients);
-
-    const std::vector<Tensor<1, dim>> &Duh = info.gradients[0][0];
-    const unsigned int                 deg = fe.get_fe().tensor_degree();
-    const double                       penalty =
-      dealii::LocalIntegrators::Biharmonic::compute_penalty(dinfo,
-                                                            dinfo,
-                                                            deg,
-                                                            deg);
-
-    for (unsigned k = 0; k < fe.n_quadrature_points; ++k)
-      {
-        const double diff = (exact_gradients[k] - Duh[k]) * fe.normal_vector(k);
-        dinfo.value(0) += penalty * diff * diff * fe.JxW(k);
-      }
-    dinfo.value(0) = std::sqrt(dinfo.value(0));
-  }
-
-  template <int dim>
-  void ErrorIntegrator<dim>::face(
-    MeshWorker::DoFInfo<dim> &                 dinfo1,
-    MeshWorker::DoFInfo<dim> &                 dinfo2,
-    typename MeshWorker::IntegrationInfo<dim> &info1,
-    typename MeshWorker::IntegrationInfo<dim> &info2) const
-  {
-    const FEValuesBase<dim> &          fe   = info1.fe_values();
-    const std::vector<Tensor<1, dim>> &Duh1 = info1.gradients[0][0];
-    const std::vector<Tensor<1, dim>> &Duh2 = info2.gradients[0][0];
-    const unsigned int                 deg  = fe.get_fe().tensor_degree();
-    const double                       penalty =
-      dealii::LocalIntegrators::Biharmonic::compute_penalty(dinfo1,
-                                                            dinfo2,
-                                                            deg,
-                                                            deg);
-
-    for (unsigned k = 0; k < fe.n_quadrature_points; ++k)
-      {
-        double diff = (Duh1[k] - Duh2[k]) * fe.normal_vector(k);
-        dinfo1.value(0) += (penalty * diff * diff) * fe.JxW(k);
-      }
-    dinfo1.value(0) = std::sqrt(dinfo1.value(0));
-    dinfo2.value(0) = dinfo1.value(0);
-  }
-
-
   /*************************************************************/
   // @sect3{The main class}
   template <int dim>
@@ -789,49 +674,9 @@ namespace StepBiharmonic
   template <int dim>
   void BiharmonicProblem<dim>::error()
   {
-    BlockVector<double> errors(2);
-    errors.block(0).reinit(triangulation.n_active_cells());
-    errors.block(1).reinit(triangulation.n_active_cells());
-    unsigned int i = 0;
-    for (typename Triangulation<dim>::active_cell_iterator cell =
-           triangulation.begin_active();
-         cell != triangulation.end();
-         ++cell, ++i)
-      cell->set_user_index(i);
-    MeshWorker::IntegrationInfoBox<dim> info_box;
-
     const unsigned int n_gauss_points =
       dof_handler.get_fe().tensor_degree() + 1;
-
-    AnyData solution_data;
-    solution_data.add(&solution, "solution");
-    info_box.cell_selector.add("solution", true, true, true);
-    info_box.boundary_selector.add("solution", true, true, false);
-    info_box.face_selector.add("solution", true, true, false);
-
-    UpdateFlags update_flags = update_values | update_quadrature_points |
-                               update_gradients | update_hessians;
-    info_box.add_update_flags_all(update_flags);
-    info_box.initialize_gauss_quadrature(n_gauss_points,
-                                         n_gauss_points + 1,
-                                         n_gauss_points);
-    info_box.initialize(fe, mapping, solution_data, solution);
-    MeshWorker::DoFInfo<dim>                     dof_info(dof_handler);
-    MeshWorker::Assembler::CellsAndFaces<double> assembler;
-    AnyData                                      out_data;
-    BlockVector<double> *                        est = &errors;
-    out_data.add(est, "cells");
-    assembler.initialize(out_data, false);
-    ErrorIntegrator<dim> integrator;
-    MeshWorker::integration_loop<dim, dim>(dof_handler.begin_active(),
-                                           dof_handler.end(),
-                                           dof_info,
-                                           info_box,
-                                           integrator,
-                                           assembler);
-    std::cout << "   energy-error: " << errors.block(0).l2_norm() << std::endl;
-    std::cout << "   L2-error: " << errors.block(1).l2_norm() << std::endl;
-
+    
     {
       Vector<float> norm_per_cell(triangulation.n_active_cells());
       VectorTools::integrate_difference(dof_handler,
@@ -840,58 +685,63 @@ namespace StepBiharmonic
                                         norm_per_cell,
                                         QGauss<dim>(n_gauss_points + 1),
                                         VectorTools::L2_norm);
-      const double solution_norm =
+      const double error_norm =
         VectorTools::compute_global_error(triangulation,
                                           norm_per_cell,
                                           VectorTools::L2_norm);
-      std::cout << "   l2 timo " << solution_norm << std::endl;
+      std::cout << "   Error in the L2 norm:     " << error_norm << std::endl;
+    }
 
-      {
-        const QGauss<dim> quadrature_formula(fe.degree + 2);
-        Solution<dim>     exact_solution;
-        Vector<double>    error_per_cell(triangulation.n_active_cells());
+    {
+      Vector<float> norm_per_cell(triangulation.n_active_cells());
+      VectorTools::integrate_difference(dof_handler,
+                                        solution,
+                                        Solution<dim>(),
+                                        norm_per_cell,
+                                        QGauss<dim>(n_gauss_points + 1),
+                                        VectorTools::H1_seminorm);
+      const double error_norm =
+        VectorTools::compute_global_error(triangulation,
+                                          norm_per_cell,
+                                          VectorTools::H1_seminorm);
+      std::cout << "   Error in the H1 seminorm: " << error_norm << std::endl;
+    }
+    
+    // Now also compute the H2 seminorm error, integrating over the interiors
+    // of the cells but not taking into account the interface jump terms.
+    // This is *not* equivalent to the energy error for the problem.
+    {
+      const QGauss<dim> quadrature_formula(fe.degree + 2);
+      Solution<dim>     exact_solution;
+      Vector<double>    error_per_cell(triangulation.n_active_cells());
 
-        FEValues<dim> fe_values( // mappingfe,
+      FEValues<dim> fe_values( // mappingfe,
           fe,
           quadrature_formula,
           update_values | update_hessians | update_quadrature_points |
-            update_JxW_values);
+          update_JxW_values);
 
-        FEValuesExtractors::Scalar scalar(0);
-        const unsigned int         n_q_points = quadrature_formula.size();
+      FEValuesExtractors::Scalar scalar(0);
+      const unsigned int         n_q_points = quadrature_formula.size();
 
-        std::vector<SymmetricTensor<2, dim>> exact_hessians(n_q_points);
-        std::vector<Tensor<2, dim>>          hessians(n_q_points);
-        unsigned int                         id = 0;
-        for (auto cell : dof_handler.active_cell_iterators())
-          {
-            fe_values.reinit(cell);
-            fe_values[scalar].get_function_hessians(solution, hessians);
-            exact_solution.hessian_list(fe_values.get_quadrature_points(),
-                                        exact_hessians);
+      std::vector<SymmetricTensor<2, dim>> exact_hessians(n_q_points);
+      std::vector<Tensor<2, dim>>          hessians(n_q_points);
+      for (auto cell : dof_handler.active_cell_iterators())
+        {
+          fe_values.reinit(cell);
+          fe_values[scalar].get_function_hessians(solution, hessians);
+          exact_solution.hessian_list(fe_values.get_quadrature_points(),
+              exact_hessians);
 
-            for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
-              {
-                error_per_cell[id] +=
+          for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
+            {
+              error_per_cell[cell->active_cell_index()] +=
                   ((exact_hessians[q_point] - hessians[q_point]).norm() *
-                   fe_values.JxW(q_point));
-              }
-            ++id;
-          }
-        const double h2_semi = std::sqrt(error_per_cell.l2_norm());
-        std::cout << "   h2semi timo " << h2_semi << std::endl;
-      }
-      //      VectorTools::integrate_difference(dof_handler,
-      //                                        solution,
-      //                                        Solution<dim>(),
-      //                                        norm_per_cell,
-      //                                        QGauss<dim>(n_gauss_points+1),
-      //                                        VectorTools::H2);
-      //      const double solution_normh2 =
-      //        VectorTools::compute_global_error(triangulation,
-      //                                          norm_per_cell,
-      //                                          VectorTools::H2_se);
-      //      std::cout << "h2 timo " << solution_normh2 << std::endl;
+                      fe_values.JxW(q_point));
+            }
+        }
+      const double error_norm = std::sqrt(error_per_cell.l2_norm());
+      std::cout << "   Error in the H2 seminorm " << error_norm << std::endl;
     }
   }
 
