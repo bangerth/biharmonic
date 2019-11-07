@@ -440,9 +440,9 @@ namespace StepBiharmonic
 
       for (unsigned int qpoint = 0; qpoint < q_points.size(); ++qpoint)
         {
-          // \int_F {grad^2 u n n } [grad v n]
+          // \int_F -{grad^2 u n n } [grad v n]
           //   - {grad^2 v n n } [grad u n]
-          //   -  gamma [grad u n ][grad v n]
+          //   +  gamma [grad u n ][grad v n]
           const auto &n = normals[qpoint];
 
           for (unsigned int i = 0; i < n_dofs; ++i)
@@ -459,20 +459,15 @@ namespace StepBiharmonic
 
                 copy_data_face.cell_matrix(i, j) +=
                   (
-                    // {grad^2 v n n } [grad u n]
-                    -(fe_i.average_hessian(i, qpoint) * n * n)
-                      //                    -(trace(fe_i.average_hessian(i,qpoint)))
-                      * (fe_i.jump_gradient(j, qpoint) * n) //
-                    // {grad^2 u n n } [grad v n]
+                    -(fe_i.average_hessian(i, qpoint) * n * n) // - {grad^2 v n n }
+                      * (fe_i.jump_gradient(j, qpoint) * n) // [grad u n]
                     -
-                    (fe_i.average_hessian(j, qpoint) * n * n)
-                      //                    -
-                      //                    (trace(fe_i.average_hessian(j,qpoint)))
-                      * (fe_i.jump_gradient(i, qpoint) * n) //
-                    // gamma [grad u n ][grad v n]
+                    (fe_i.average_hessian(j, qpoint) * n * n) // - {grad^2 u n n }
+                      * (fe_i.jump_gradient(i, qpoint) * n) // [grad v n]
+                    // gamma [grad u n ][grad v n]:
                     + gamma * (fe_i.jump_gradient(i, qpoint) * n) *
-                        (fe_i.jump_gradient(j, qpoint) * n)) *
-                  JxW[qpoint]; // dx
+                        (fe_i.jump_gradient(j, qpoint) * n)
+		  ) * JxW[qpoint]; // dx
               }
         }
     };
@@ -529,26 +524,24 @@ namespace StepBiharmonic
               for (unsigned int j = 0; j < n_dofs; ++j)
                 copy_data_face.cell_matrix(i, j) +=
                   (
-                    // - {grad^2 v n n } [grad u n]
-                    -(fe_i.average_hessian(i, qpoint) * n * n) *
-                      (fe_i.jump_gradient(j, qpoint) * n) //
-                    // - {grad^2 u n n } [grad v n]
-                    - (fe_i.average_hessian(j, qpoint) * n * n) *
-                        (fe_i.jump_gradient(i, qpoint) * n) //
-                    // gamma [grad u n ][grad v n]
-                    + 2.0 * gamma * (fe_i.jump_gradient(i, qpoint) * n) *
-                        (fe_i.jump_gradient(j, qpoint) * n)) *
-                  JxW[qpoint]; // dx
+                    -(fe_i.average_hessian(i, qpoint) * n * n) // - {grad^2 v n n }
+                      * (fe_i.jump_gradient(j, qpoint) * n) // [grad u n]
+                    //
+                    - (fe_i.average_hessian(j, qpoint) * n * n) // - {grad^2 u n n }
+                        * (fe_i.jump_gradient(i, qpoint) * n) //  [grad v n]
+		    //
+                    + 2.0 * gamma * (fe_i.jump_gradient(i, qpoint) * n) // 2 gamma [grad v n]
+		    * (fe_i.jump_gradient(j, qpoint) * n)) // [grad u n]
+		  * JxW[qpoint]; // dx
 
 
               copy_data.cell_rhs(i) +=
-                (-(fe_i.average_hessian(i, qpoint) * n * n) *
-                   (exact_gradients[qpoint] * n) //
-                 + 2.0 * gamma *                 // why 2?
-                     (fe_i.jump_gradient(i, qpoint) * n) *
-                     (exact_gradients[qpoint] * n) //
-                 ) *
-                JxW[qpoint]; // dx
+                (-(fe_i.average_hessian(i, qpoint) * n * n) * //  - {grad^2 v n n }
+                   (exact_gradients[qpoint] * n) // (grad u_exact n)
+                 + 2.0 * gamma //
+		 * (fe_i.jump_gradient(i, qpoint) * n) // [grad v n]
+		 * (exact_gradients[qpoint] * n) // (grad u_exact n)
+                 ) * JxW[qpoint]; // dx
             }
         }
     };
@@ -612,7 +605,7 @@ namespace StepBiharmonic
   {
     const unsigned int n_gauss_points =
       dof_handler.get_fe().tensor_degree() + 1;
-    
+
     {
       Vector<float> norm_per_cell(triangulation.n_active_cells());
       VectorTools::integrate_difference(mapping,
@@ -644,7 +637,7 @@ namespace StepBiharmonic
                                           VectorTools::H1_seminorm);
       std::cout << "   Error in the H1 seminorm: " << error_norm << std::endl;
     }
-    
+
     // Now also compute the H2 seminorm error, integrating over the interiors
     // of the cells but not taking into account the interface jump terms.
     // This is *not* equivalent to the energy error for the problem.
