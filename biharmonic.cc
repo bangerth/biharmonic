@@ -1,13 +1,3 @@
-/*
-
-  biharmonic using FEInterfaceValues
-
-
-TODO:
-- bug: acess invalid matrix entry
-- missing boundary terms
-- calculate penalty terms correctly
-*/
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/function.h>
 
@@ -41,6 +31,7 @@ TODO:
 
 #include <fstream>
 #include <iostream>
+#include <cmath>
 
 
 namespace StepBiharmonic
@@ -313,8 +304,7 @@ namespace StepBiharmonic
                   scratch_data.fe_values.get_quadrature(),
                   scratch_data.fe_values.get_update_flags())
       , fe_interface_values(
-          scratch_data.fe_values
-            .get_mapping(), // TODO: implement for fe_interface_values
+          scratch_data.fe_values.get_mapping(),
           scratch_data.fe_values.get_fe(),
           scratch_data.fe_interface_values.get_quadrature(),
           scratch_data.fe_interface_values.get_update_flags())
