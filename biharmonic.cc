@@ -671,14 +671,16 @@ namespace StepBiharmonic
           exact_solution.hessian_list(fe_values.get_quadrature_points(),
               exact_hessians);
 
+	  double diff = 0;
           for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
             {
-              error_per_cell[cell->active_cell_index()] +=
-                  ((exact_hessians[q_point] - hessians[q_point]).norm() *
+              diff +=
+                  ((exact_hessians[q_point] - hessians[q_point]).norm_square() *
                       fe_values.JxW(q_point));
             }
+	  error_per_cell[cell->active_cell_index()] = std::sqrt(diff);
         }
-      const double error_norm = std::sqrt(error_per_cell.l2_norm());
+      const double error_norm = error_per_cell.l2_norm();
       std::cout << "   Error in the H2 seminorm: " << error_norm << std::endl;
     }
   }
