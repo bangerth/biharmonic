@@ -787,14 +787,14 @@ namespace MembraneOscillation
   BiharmonicProblem<dim>::output_results() const
   {
 // comment in if desired, but we don't generally need graphical output
-//    DataOut<dim> data_out;
+//	  DataOut<dim> data_out;
 //
-//    data_out.attach_dof_handler(dof_handler);
-//    data_out.add_data_vector(solution, "solution");
-//    data_out.build_patches();
+//	  data_out.attach_dof_handler(dof_handler);
+//	  data_out.add_data_vector(solution, "solution");
+//	  data_out.build_patches();
 //
-//    std::ofstream output_vtu("solution.vtu");
-//    data_out.write_vtu(output_vtu);
+//	  std::ofstream output_vtu("solution-" + std::to_string(omega) + ".vtu");
+//	  data_out.write_vtu(output_vtu);
   }
 
 
