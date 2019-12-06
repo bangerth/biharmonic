@@ -8,6 +8,7 @@
 
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/function.h>
+#include <deal.II/base/thread_management.h>
 
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/vector.h>
@@ -52,6 +53,11 @@ namespace MembraneOscillation
 {
   using namespace dealii;
 
+  // A variable that will collect the integrals (value) for all frequencies
+  // omega (key). Since we will access it from different threads, we also
+  // need a mutex to guard access to it.
+  std::map<double,double> amplitude_integrals;
+  std::mutex amplitude_integrals_mutex;
 
   // The following namespace defines material parameters. We use SI units.
   namespace MaterialParameters
@@ -66,8 +72,6 @@ namespace MembraneOscillation
     constexpr double stiffness_D    = 1;
 
     constexpr double domain_size = 0.01;
-
-    constexpr double omega          = 10;
   }
 
   // In the following namespace, let us define the exact solution against
@@ -132,10 +136,16 @@ namespace MembraneOscillation
     public:
       static_assert(dim == 2, "Only dim==2 is implemented");
 
+      RightHandSide (const double omega)
+      : omega (omega)
+      {}
+
       virtual double value(const Point<dim> &p,
                            const unsigned int /*component*/ = 0) const override
 
       {
+    	  return 1;
+
         const double L =  MaterialParameters::domain_size;
 
         return
@@ -147,13 +157,16 @@ namespace MembraneOscillation
            2 * std::pow(PI / L, 2.0) * std::sin(PI * p[0] / L) *
            std::sin(PI * p[1] / L)
            -
-           MaterialParameters::omega *
-           MaterialParameters::omega *
+           omega *
+           omega *
            MaterialParameters::thickness *
            MaterialParameters::density *
            std::sin(PI * p[0]) *
            std::sin(PI * p[1]));
       }
+
+    private:
+      double omega;
     };
   } // namespace ExactSolution
 
@@ -169,7 +182,8 @@ namespace MembraneOscillation
   class BiharmonicProblem
   {
   public:
-    BiharmonicProblem(const unsigned int fe_degree);
+    BiharmonicProblem(const unsigned int fe_degree,
+    		const double omega);
 
     void run();
 
@@ -178,8 +192,11 @@ namespace MembraneOscillation
     void setup_system();
     void assemble_system();
     void solve();
-    void compute_errors();
-    void output_results(const unsigned int iteration) const;
+    void postprocess();
+    void output_results() const;
+
+    // The frequency that this instance of the class is supposed to solve for.
+    const double omega;
 
     Triangulation<dim> triangulation;
 
@@ -199,8 +216,10 @@ namespace MembraneOscillation
 
 
   template <int dim>
-  BiharmonicProblem<dim>::BiharmonicProblem(const unsigned int fe_degree)
-    : mapping(1)
+  BiharmonicProblem<dim>::BiharmonicProblem(const unsigned int fe_degree,
+		  const double omega)
+    : omega (omega)
+	, mapping(1)
     , fe(fe_degree)
     , dof_handler(triangulation)
   {}
@@ -215,12 +234,7 @@ namespace MembraneOscillation
   void BiharmonicProblem<dim>::make_grid()
   {
     GridGenerator::hyper_cube(triangulation, 0., MaterialParameters::domain_size);
-    triangulation.refine_global(1);
-
-    std::cout << "Number of active cells: " << triangulation.n_active_cells()
-              << std::endl
-              << "Total number of cells: " << triangulation.n_cells()
-              << std::endl;
+    triangulation.refine_global(5);
   }
 
 
@@ -229,9 +243,6 @@ namespace MembraneOscillation
   void BiharmonicProblem<dim>::setup_system()
   {
     dof_handler.distribute_dofs(fe);
-
-    std::cout << "   Number of degrees of freedom: " << dof_handler.n_dofs()
-              << std::endl;
 
     constraints.clear();
     DoFTools::make_hanging_node_constraints(dof_handler, constraints);
@@ -412,7 +423,7 @@ namespace MembraneOscillation
 
       const FEValues<dim> &fe_values = scratch_data.fe_values;
 
-      const ExactSolution::RightHandSide<dim> right_hand_side;
+      const ExactSolution::RightHandSide<dim> right_hand_side (omega);
 
       const unsigned int dofs_per_cell =
         scratch_data.fe_values.get_fe().dofs_per_cell;
@@ -434,8 +445,8 @@ namespace MembraneOscillation
                      fe_values.shape_grad(i, point) *
                      fe_values.shape_grad(j, point)
                     -
-                     MaterialParameters::omega *
-                     MaterialParameters::omega *
+                     omega *
+                     omega *
                      MaterialParameters::thickness *
                      MaterialParameters::density *
                      fe_values.shape_value(i, point) *
@@ -711,8 +722,6 @@ namespace MembraneOscillation
   template <int dim>
   void BiharmonicProblem<dim>::solve()
   {
-    std::cout << "   Solving system..." << std::endl;
-
     SparseDirectUMFPACK A_direct;
     A_direct.initialize(system_matrix);
     A_direct.vmult(solution, system_rhs);
@@ -728,94 +737,47 @@ namespace MembraneOscillation
   // the corresponding solution). In the first two code blocks below,
   // we compute the error in the $L_2$ norm and the $H^1$ semi-norm.
   template <int dim>
-  void BiharmonicProblem<dim>::compute_errors()
+  void BiharmonicProblem<dim>::postprocess()
   {
-    {
-      Vector<float> norm_per_cell(triangulation.n_active_cells());
-      VectorTools::integrate_difference(mapping,
-                                        dof_handler,
-                                        solution,
-                                        ExactSolution::Solution<dim>(),
-                                        norm_per_cell,
-                                        QGauss<dim>(fe.degree + 2),
-                                        VectorTools::L2_norm);
-      const double error_norm =
-        VectorTools::compute_global_error(triangulation,
-                                          norm_per_cell,
-                                          VectorTools::L2_norm);
-      std::cout << "   Error in the L2 norm       :     " << error_norm
-                << std::endl;
-    }
+// Comment in if desired, but we don't generally need errors
+//	  Vector<float> norm_per_cell(triangulation.n_active_cells());
+//      VectorTools::integrate_difference(mapping,
+//                                        dof_handler,
+//                                        solution,
+//                                        ExactSolution::Solution<dim>(),
+//                                        norm_per_cell,
+//                                        QGauss<dim>(fe.degree + 2),
+//                                        VectorTools::L2_norm);
+//      const double error_norm =
+//        VectorTools::compute_global_error(triangulation,
+//                                          norm_per_cell,
+//                                          VectorTools::L2_norm);
+//      std::cout << "   Error in the L2 norm:     " << error_norm
+//                << std::endl;
 
-    {
-      Vector<float> norm_per_cell(triangulation.n_active_cells());
-      VectorTools::integrate_difference(mapping,
-                                        dof_handler,
-                                        solution,
-                                        ExactSolution::Solution<dim>(),
-                                        norm_per_cell,
-                                        QGauss<dim>(fe.degree + 2),
-                                        VectorTools::H1_seminorm);
-      const double error_norm =
-        VectorTools::compute_global_error(triangulation,
-                                          norm_per_cell,
-                                          VectorTools::H1_seminorm);
-      std::cout << "   Error in the H1 seminorm       : " << error_norm
-                << std::endl;
-    }
+	  // Compute the integral of the absolute value of the solution.
+	  const QGauss<dim>  quadrature_formula(fe.degree + 2);
+	  const unsigned int n_q_points = quadrature_formula.size();
+	  FEValues<dim> fe_values(mapping,
+			  fe,
+			  quadrature_formula,
+			  update_values | update_JxW_values);
 
-    // Now also compute an approximation to the $H^2$ seminorm error. The actual
-    // $H^2$ seminorm would require us to integrate second derivatives of the
-    // solution $u_h$, but given the Lagrange shape functions we use, $u_h$ of
-    // course has kinks at the interfaces between cells, and consequently second
-    // derivatives are singular at interfaces. As a consequence, we really only
-    // integrating over the interiors of the cells and ignore the interface
-    // contributions. This is *not* an equivalent norm to the energy norm for
-    // the problem, but still gives us an idea of how fast the error converges.
-    //
-    // We note that one could address this issue by defining a norm that
-    // is equivalent to the energy norm. This would involve adding up not
-    // only the integrals over cell interiors as we do below, but also adding
-    // penalty terms for the jump of the derivative of $u_h$ across interfaces,
-    // with an appropriate scaling of the two kinds of terms. We will leave
-    // this for later work.
-    {
-      const QGauss<dim>            quadrature_formula(fe.degree + 2);
-      ExactSolution::Solution<dim> exact_solution;
-      Vector<double> error_per_cell(triangulation.n_active_cells());
+	  double integral = 0;
+	  std::vector<double> function_values(n_q_points);
+	  for (auto cell : dof_handler.active_cell_iterators())
+	  {
+		  fe_values.reinit(cell);
+		  fe_values.get_function_values(solution, function_values);
+		  for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
+			  integral += std::fabs(function_values[q_point]) * fe_values.JxW(q_point);
+	  }
 
-      FEValues<dim> fe_values(mapping,
-                              fe,
-                              quadrature_formula,
-                              update_values | update_hessians |
-                                update_quadrature_points | update_JxW_values);
-
-      FEValuesExtractors::Scalar scalar(0);
-      const unsigned int         n_q_points = quadrature_formula.size();
-
-      std::vector<SymmetricTensor<2, dim>> exact_hessians(n_q_points);
-      std::vector<Tensor<2, dim>>          hessians(n_q_points);
-      for (auto cell : dof_handler.active_cell_iterators())
-        {
-          fe_values.reinit(cell);
-          fe_values[scalar].get_function_hessians(solution, hessians);
-          exact_solution.hessian_list(fe_values.get_quadrature_points(),
-                                      exact_hessians);
-
-          double local_error = 0;
-          for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
-            {
-              local_error +=
-                ((exact_hessians[q_point] - hessians[q_point]).norm_square() *
-                 fe_values.JxW(q_point));
-            }
-          error_per_cell[cell->active_cell_index()] = std::sqrt(local_error);
-        }
-
-      const double error_norm = error_per_cell.l2_norm();
-      std::cout << "   Error in the broken H2 seminorm: " << error_norm
-                << std::endl;
-    }
+	  // Put the result into the output variable that we can
+	  // read from main(). Make sure that access to the variable is
+	  // properly guarded across threads.
+	  std::lock_guard<std::mutex> guard (amplitude_integrals_mutex);
+	  amplitude_integrals[omega] = integral;
   }
 
 
@@ -824,19 +786,17 @@ namespace MembraneOscillation
   // It looks exactly like the one in step-6, for example.
   template <int dim>
   void
-  BiharmonicProblem<dim>::output_results(const unsigned int iteration) const
+  BiharmonicProblem<dim>::output_results() const
   {
-    std::cout << "   Writing graphical output..." << std::endl;
-
-    DataOut<dim> data_out;
-
-    data_out.attach_dof_handler(dof_handler);
-    data_out.add_data_vector(solution, "solution");
-    data_out.build_patches();
-
-    std::ofstream output_vtu(
-      ("output_" + Utilities::int_to_string(iteration, 6) + ".vtu").c_str());
-    data_out.write_vtu(output_vtu);
+// comment in if desired, but we don't generally need graphical output
+//    DataOut<dim> data_out;
+//
+//    data_out.attach_dof_handler(dof_handler);
+//    data_out.add_data_vector(solution, "solution");
+//    data_out.build_patches();
+//
+//    std::ofstream output_vtu("solution.vtu");
+//    data_out.write_vtu(output_vtu);
   }
 
 
@@ -847,23 +807,14 @@ namespace MembraneOscillation
   void BiharmonicProblem<dim>::run()
   {
     make_grid();
+    setup_system();
 
-    const unsigned int n_cycles = 4;
-    for (unsigned int cycle = 0; cycle < n_cycles; ++cycle)
-      {
-        std::cout << "Cycle: " << cycle << " of " << n_cycles << std::endl;
+    assemble_system();
+    solve();
 
-        triangulation.refine_global(1);
-        setup_system();
+    output_results();
 
-        assemble_system();
-        solve();
-
-        output_results(cycle);
-
-        compute_errors();
-        std::cout << std::endl;
-      }
+    postprocess();
   }
 } // namespace MembraneOscillation
 
@@ -891,8 +842,24 @@ int main()
                         "only works if one uses elements of polynomial "
                         "degree at least 2."));
 
-      BiharmonicProblem<2> biharmonic_problem(fe_degree);
-      biharmonic_problem.run();
+      std::vector<double> frequencies;
+      Threads::TaskGroup<> tasks;
+      for (double omega=100; omega<=10000; omega*=1.1)
+    	  tasks += Threads::new_task ([=]() {
+                       BiharmonicProblem<2> biharmonic_problem(fe_degree, omega);
+                       biharmonic_problem.run();
+                   });
+
+      tasks.join_all();
+
+      // Output everything previously computed. Make sure that we
+      // wait for all threads to release access to the variable. (This
+      // is unnecessary here because we have joined all tasks, but
+      // it doesn't hurt either.)
+      std::cout << "Frequency | Amplitude\n";
+	  std::lock_guard<std::mutex> guard (amplitude_integrals_mutex);
+	  for (auto amplitude : amplitude_integrals)
+		  std::cout << amplitude.first << ": " << amplitude.second << std::endl;
     }
   catch (std::exception &exc)
     {
