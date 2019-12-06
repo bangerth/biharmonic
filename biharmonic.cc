@@ -69,7 +69,7 @@ namespace MembraneOscillation
     constexpr double poissons_ratio = 0.2;
 
     constexpr double tension        = 1;          // 1 N/m
-    constexpr double stiffness_D    = 1;
+    constexpr double stiffness_D    = 0.3e9;
 
     constexpr double domain_size = 0.01;
   }
@@ -731,11 +731,9 @@ namespace MembraneOscillation
 
 
 
-  // The next function evaluates the error between the computed solution
-  // and the exact solution (which is known here because we have chosen
-  // the right hand side and boundary values in a way so that we know
-  // the corresponding solution). In the first two code blocks below,
-  // we compute the error in the $L_2$ norm and the $H^1$ semi-norm.
+  // The next function postprocesses the solution. In the current context,
+  // this implies computing the integral over the magnitude of the solution.
+  // It will be small in general, except in the vicinity of eigenvalues.
   template <int dim>
   void BiharmonicProblem<dim>::postprocess()
   {
