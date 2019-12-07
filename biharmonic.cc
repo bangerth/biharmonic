@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------
  *
- * Copyright (C) 2019 by the Wolfgang Bangerth and SAATI Co.
+ * Copyright (C) 2019 by Wolfgang Bangerth and SAATI Co.
  *
  * ---------------------------------------------------------------------
  */
