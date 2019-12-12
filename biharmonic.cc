@@ -854,8 +854,10 @@ int main()
       // wait for all threads to release access to the variable. (This
       // is unnecessary here because we have joined all tasks, but
       // it doesn't hurt either.)
-      std::cout << "Frequency | Amplitude\n";
 	  std::lock_guard<std::mutex> guard (amplitude_integrals_mutex);
+      std::cout << "Number of frequencies computed: "
+                << amplitude_integrals.size() << std::endl;
+      std::cout << "Frequency | Amplitude\n";
 	  for (auto amplitude : amplitude_integrals)
 		  std::cout << amplitude.first << ": " << amplitude.second << std::endl;
     }
