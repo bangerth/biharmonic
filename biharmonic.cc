@@ -683,7 +683,7 @@ namespace MembraneOscillation
 		  fe_values.reinit(cell);
 		  fe_values.get_function_values(solution, function_values);
 		  for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
-			  integral += std::fabs(function_values[q_point]) * fe_values.JxW(q_point);
+			  integral += function_values[q_point] * fe_values.JxW(q_point);
 	  }
 
 	  // Put the result into the output variable that we can
