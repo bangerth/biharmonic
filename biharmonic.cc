@@ -69,7 +69,7 @@ namespace MembraneOscillation
     constexpr double poissons_ratio = 0.2;
 
     constexpr double tension        = 1;          // 1 N/m
-    constexpr double stiffness_D    = 0.3e9;
+    constexpr double stiffness_D    = youngs_modulus * thickness * thickness * thickness / 12 / (1 - poissons_ratio * poissons_ratio);
 
     constexpr double domain_size = 0.01;
   }
