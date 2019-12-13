@@ -74,65 +74,10 @@ namespace MembraneOscillation
     constexpr double domain_size = 0.01;
   }
 
-  // In the following namespace, let us define the exact solution against
-  // which we will compare the numerically computed one. It has the form
-  // $u(x,y) = \sin(\pi x) \sin(\pi y)$ (only the 2d case is implemented),
-  // and the namespace also contains a class that corresponds to the right
-  // hand side that produces this solution.
-  namespace ExactSolution
+
+  template <int dim>
+  class RightHandSide : public Function<dim>
   {
-    using numbers::PI;
-
-    template <int dim>
-    class Solution : public Function<dim>
-    {
-    public:
-      static_assert(dim == 2, "Only dim==2 is implemented");
-
-      virtual double value(const Point<dim> &p,
-                           const unsigned int /*component*/ = 0) const override
-      {
-        const double L =  MaterialParameters::domain_size;
-
-        return std::sin(PI * p[0] / L) *
-          std::sin(PI * p[1] / L);
-      }
-
-      virtual Tensor<1, dim>
-      gradient(const Point<dim> &p,
-               const unsigned int /*component*/ = 0) const override
-      {
-        const double L =  MaterialParameters::domain_size;
-
-        Tensor<1, dim> r;
-        r[0] = PI / L * std::cos(PI * p[0] / L) * std::sin(PI * p[1] / L);
-        r[1] = PI / L * std::cos(PI * p[1] / L) * std::sin(PI * p[0] / L);
-        return r;
-      }
-
-      virtual void
-      hessian_list(const std::vector<Point<dim>> &       points,
-                   std::vector<SymmetricTensor<2, dim>> &hessians,
-                   const unsigned int /*component*/ = 0) const override
-      {
-        const double L =  MaterialParameters::domain_size;
-
-        for (unsigned i = 0; i < points.size(); ++i)
-          {
-            const double x = points[i][0];
-            const double y = points[i][1];
-
-            hessians[i][0][0] = -PI * PI / L / L * std::sin(PI * x / L) * std::sin(PI * y / L);
-            hessians[i][0][1] = PI * PI / L / L * std::cos(PI * x / L) * std::cos(PI * y / L);
-            hessians[i][1][1] = -PI * PI / L / L * std::sin(PI * x / L) * std::sin(PI * y / L);
-          }
-      }
-    };
-
-
-    template <int dim>
-    class RightHandSide : public Function<dim>
-    {
     public:
       static_assert(dim == 2, "Only dim==2 is implemented");
 
@@ -140,35 +85,16 @@ namespace MembraneOscillation
       : omega (omega)
       {}
 
-      virtual double value(const Point<dim> &p,
+      virtual double value(const Point<dim>  &/*p*/,
                            const unsigned int /*component*/ = 0) const override
 
       {
-    	  return 1;
-
-        const double L =  MaterialParameters::domain_size;
-
-        return
-          (MaterialParameters::stiffness_D *
-           4 * std::pow(PI / L, 4.0) * std::sin(PI * p[0] / L) *
-           std::sin(PI * p[1] / L)
-           +
-           MaterialParameters::tension *
-           2 * std::pow(PI / L, 2.0) * std::sin(PI * p[0] / L) *
-           std::sin(PI * p[1] / L)
-           -
-           omega *
-           omega *
-           MaterialParameters::thickness *
-           MaterialParameters::density *
-           std::sin(PI * p[0]) *
-           std::sin(PI * p[1]));
+        return 1;
       }
 
     private:
       double omega;
-    };
-  } // namespace ExactSolution
+  };
 
 
 
@@ -249,7 +175,7 @@ namespace MembraneOscillation
 
     VectorTools::interpolate_boundary_values(dof_handler,
                                              0,
-                                             ExactSolution::Solution<dim>(),
+                                             ZeroFunction<dim>(),
                                              constraints);
     constraints.close();
 
@@ -423,7 +349,7 @@ namespace MembraneOscillation
 
       const FEValues<dim> &fe_values = scratch_data.fe_values;
 
-      const ExactSolution::RightHandSide<dim> right_hand_side (omega);
+      const RightHandSide<dim> right_hand_side (omega);
 
       const unsigned int dofs_per_cell =
         scratch_data.fe_values.get_fe().dofs_per_cell;
@@ -597,11 +523,6 @@ namespace MembraneOscillation
       const std::vector<Tensor<1, dim>> &normals = fe_interface_values.get_normal_vectors();
 
 
-      const ExactSolution::Solution<dim> exact_solution;
-      std::vector<Tensor<1, dim>>        exact_gradients(q_points.size());
-      exact_solution.gradient_list(q_points, exact_gradients);
-
-
       // eta = 1/2 + 2C_2
       // gamma = eta/|e|
 
@@ -641,16 +562,10 @@ namespace MembraneOscillation
                    ) *
                   JxW[qpoint]; // dx
 
-              copy_data.cell_rhs(i) +=
-                    MaterialParameters::stiffness_D *
-                (-(fe_interface_values.average_hessian(i, qpoint) * n *
-                   n) *                                    //  - {grad^2 v n n }
-                   (exact_gradients[qpoint] * n)           // (grad u_exact n)
-                 + 2.0 * gamma                             //
-                     * (fe_interface_values.jump_gradient(i, qpoint) * n) // [grad v n]
-                     * (exact_gradients[qpoint] * n)       // (grad u_exact n)
-                 ) *
-                JxW[qpoint]; // dx
+              // Ordinarily, the rhs vector would contain a term that makes sure the
+              // boundary conditions of the form du/dn=h are taken care of. But for the
+              // purposes of the current program, h=0 and so the additional term is
+              // simply zero. So there is no term of that form we need to add here.
             }
         }
     };
