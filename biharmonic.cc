@@ -772,9 +772,9 @@ int main()
 	  std::lock_guard<std::mutex> guard (amplitude_integrals_mutex);
       std::cout << "Number of frequencies computed: "
                 << amplitude_integrals.size() << std::endl;
-      std::cout << "Frequency | Amplitude\n";
+      std::ofstream frequency_response ("frequency_response.txt");
 	  for (auto amplitude : amplitude_integrals)
-		  std::cout << amplitude.first << ": " << amplitude.second << std::endl;
+		  frequency_response << amplitude.first << " " << amplitude.second << std::endl;
     }
   catch (std::exception &exc)
     {
