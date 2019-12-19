@@ -70,8 +70,6 @@ namespace MembraneOscillation
 
     constexpr double tension        = 1;          // 1 N/m
     constexpr double stiffness_D    = youngs_modulus * thickness * thickness * thickness / 12 / (1 - poissons_ratio * poissons_ratio);
-
-    constexpr double domain_size = 0.01;
   }
 
 
@@ -159,7 +157,8 @@ namespace MembraneOscillation
   template <int dim>
   void BiharmonicProblem<dim>::make_grid()
   {
-    GridGenerator::hyper_cube(triangulation, 0., MaterialParameters::domain_size);
+    GridGenerator::hyper_ball(triangulation, Point<dim>(),
+                              MaterialParameters::diameter/2);
     triangulation.refine_global(5);
   }
 
@@ -757,7 +756,7 @@ int main()
 
       std::vector<double> frequencies;
       Threads::TaskGroup<> tasks;
-      for (double omega=100; omega<=10000; omega*=1.1)
+      for (double omega=1000; omega<=60000; omega*=1.02)
     	  tasks += Threads::new_task ([=]() {
                        BiharmonicProblem<2> biharmonic_problem(fe_degree, omega);
                        biharmonic_problem.run();
@@ -774,7 +773,9 @@ int main()
                 << amplitude_integrals.size() << std::endl;
       std::ofstream frequency_response ("frequency_response.txt");
 	  for (auto amplitude : amplitude_integrals)
-		  frequency_response << amplitude.first << " " << amplitude.second << std::endl;
+		  frequency_response << amplitude.first << ' '
+                                     << amplitude.second
+                                     << std::endl;
     }
   catch (std::exception &exc)
     {
