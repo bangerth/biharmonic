@@ -560,27 +560,39 @@ namespace MembraneOscillation
 
           for (unsigned int i = 0; i < n_dofs; ++i)
             {
+              const double av_hessian_i_dot_n_dot_n
+                = (fe_interface_values.average_hessian(i, qpoint) * n * n);
+              const double jump_grad_i_dot_n
+                = (fe_interface_values.jump_gradient(i, qpoint) * n);
+              
               for (unsigned int j = 0; j < n_dofs; ++j)
-                copy_data_face.cell_matrix(i, j) +=
-                    MaterialParameters::stiffness_D *
-                  (-(fe_interface_values.average_hessian(i, qpoint) * n *
-                     n)                                    // - {grad^2 v n n }
-                     * (fe_interface_values.jump_gradient(j, qpoint) * n) // [grad u n]
-                   //
-                   - (fe_interface_values.average_hessian(j, qpoint) * n *
-                      n) // - {grad^2 u n n }
-                       * (fe_interface_values.jump_gradient(i, qpoint) * n) //  [grad v n]
-                                                             //
-                   + 2.0 * gamma *
-                       (fe_interface_values.jump_gradient(i, qpoint) * n) // 2 gamma [grad v n]
-                       * (fe_interface_values.jump_gradient(j, qpoint) * n) // [grad u n]
-                   ) *
-                  JxW[qpoint]; // dx
+                {
+                  const double av_hessian_j_dot_n_dot_n
+                    = (fe_interface_values.average_hessian(j, qpoint) * n * n);
 
-              // Ordinarily, the rhs vector would contain a term that makes sure the
-              // boundary conditions of the form du/dn=h are taken care of. But for the
-              // purposes of the current program, h=0 and so the additional term is
-              // simply zero. So there is no term of that form we need to add here.
+                  const double jump_grad_j_dot_n
+                    = (fe_interface_values.jump_gradient(j, qpoint) * n);
+                  
+                  copy_data_face.cell_matrix(i, j) +=
+                    MaterialParameters::stiffness_D *
+                    (-av_hessian_i_dot_n_dot_n  // - {grad^2 v n n }
+                     * jump_grad_j_dot_n        // [grad u n]
+                     //
+                     -av_hessian_j_dot_n_dot_n  // - {grad^2 u n n }
+                     * jump_grad_i_dot_n        //  [grad v n]
+                     //
+                     +
+                     2.0 * gamma *
+                     jump_grad_i_dot_n          // 2 gamma [grad v n]
+                     * jump_grad_j_dot_n        // [grad u n]
+                    ) *
+                    JxW[qpoint]; // dx
+
+                  // Ordinarily, the rhs vector would contain a term that makes sure the
+                  // boundary conditions of the form du/dn=h are taken care of. But for the
+                  // purposes of the current program, h=0 and so the additional term is
+                  // simply zero. So there is no term of that form we need to add here.
+                }
             }
         }
     };
