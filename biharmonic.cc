@@ -480,33 +480,48 @@ namespace MembraneOscillation
       // and indices `i` and `j` to add up the contributions of this
       // face or sub-face. These are then stored in the `copy_data.face_data`
       // object created above.
-      for (unsigned int point = 0;
-           point < fe_interface_values.n_quadrature_points;
-           ++point)
+      for (unsigned int qpoint = 0;
+           qpoint < fe_interface_values.n_quadrature_points;
+           ++qpoint)
         {
           // \int_F -{grad^2 u n n } [grad v n]
           //   - {grad^2 v n n } [grad u n]
           //   +  gamma [grad u n ][grad v n]
-          const auto &n = fe_interface_values.normal(point);
+          const auto &n = fe_interface_values.normal(qpoint);
 
           for (unsigned int i = 0; i < n_interface_dofs; ++i)
-            for (unsigned int j = 0; j < n_interface_dofs; ++j)
-              {
-                copy_data_face.cell_matrix(i, j) +=
-                  MaterialParameters::stiffness_D *                  
-                  (-(fe_interface_values.average_hessian(i, point) * n *
-                     n) // - {grad^2 v n n }
-                     * (fe_interface_values.jump_gradient(j, point) *
-                        n) // [grad u n]
-                   - (fe_interface_values.average_hessian(j, point) * n *
-                      n) // - {grad^2 u n n }
-                       * (fe_interface_values.jump_gradient(i, point) *
-                          n) // [grad v n]
-                   // gamma [grad u n ][grad v n]:
-                   + gamma * (fe_interface_values.jump_gradient(i, point) * n) *
-                   (fe_interface_values.jump_gradient(j, point) * n)) *
-                  fe_interface_values.JxW(point); // dx
-              }
+            {
+              const double av_hessian_i_dot_n_dot_n
+                = (fe_interface_values.average_hessian(i, qpoint) * n * n);
+              const double jump_grad_i_dot_n
+                = (fe_interface_values.jump_gradient(i, qpoint) * n);
+              
+              for (unsigned int j = 0; j < n_interface_dofs; ++j)
+                {
+                  const double av_hessian_j_dot_n_dot_n
+                    = (fe_interface_values.average_hessian(j, qpoint) * n * n);
+                  const double jump_grad_j_dot_n
+                    = (fe_interface_values.jump_gradient(j, qpoint) * n);
+
+              
+                  copy_data_face.cell_matrix(i, j) +=
+                    MaterialParameters::stiffness_D *                  
+                    (-
+                     av_hessian_i_dot_n_dot_n // - {grad^2 v n n }
+                     * jump_grad_j_dot_n // [grad u n]
+                     -
+                     av_hessian_j_dot_n_dot_n // - {grad^2 u n n }
+                     * jump_grad_i_dot_n // [grad v n]
+                     // gamma [grad u n ][grad v n]:
+                     +
+                     gamma
+                     * jump_grad_i_dot_n
+                     * jump_grad_j_dot_n
+                    )
+                    *
+                    fe_interface_values.JxW(qpoint); // dx
+                }
+            }
         }
     };
 
