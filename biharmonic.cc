@@ -374,24 +374,32 @@ namespace MembraneOscillation
         {
           for (unsigned int i = 0; i < dofs_per_cell; ++i)
             {
+              const Tensor<2,dim> hessian_i = fe_values.shape_hessian(i, point);
+              const Tensor<1,dim> grad_i    = fe_values.shape_grad(i, point);
+              const double        value_i   = fe_values.shape_value(i, point);
+              
               for (unsigned int j = 0; j < dofs_per_cell; ++j)
                 {
+                  const Tensor<2,dim> hessian_j = fe_values.shape_hessian(j, point);
+                  const Tensor<1,dim> grad_j    = fe_values.shape_grad(j, point);
+                  const double        value_j   = fe_values.shape_value(j, point);
+
                   copy_data.cell_matrix(i, j) +=
                     (MaterialParameters::stiffness_D *
                      scalar_product(
-                       fe_values.shape_hessian(i, point),   // nabla^2 phi_i(x)
-                       fe_values.shape_hessian(j, point))   // nabla^2 phi_j(x)
+                       hessian_i,   // nabla^2 phi_i(x)
+                       hessian_j)   // nabla^2 phi_j(x)
                      +
                      MaterialParameters::tension *
-                     fe_values.shape_grad(i, point) *
-                     fe_values.shape_grad(j, point)
+                     grad_i *
+                     grad_j
                     -
                      omega *
                      omega *
                      MaterialParameters::thickness *
                      MaterialParameters::density *
-                     fe_values.shape_value(i, point) *
-                     fe_values.shape_value(j, point)
+                     value_i *
+                     value_j
                      )
                     * fe_values.JxW(point);                  // dx
                 }
