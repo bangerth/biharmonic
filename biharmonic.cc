@@ -53,11 +53,25 @@ namespace MembraneOscillation
 {
   using namespace dealii;
 
-  // A variable that will collect the integrals (value) for all frequencies
+  // A data structure that is used to collect the results of the computations
+  // for one frequency. The main class fills this for a given frequency
+  // in various places of its member functions, and at the end puts it into
+  // a global map.
+  struct OutputData
+  {
+    double normalized_amplitude_integral;
+    double normalized_maximum_amplitude;
+
+    std::string visualization_file_name;
+  };
+  
+    
+  
+  // A variable that will collect the data (value) for all frequencies
   // omega (key). Since we will access it from different threads, we also
   // need a mutex to guard access to it.
-  std::map<double,double> amplitude_integrals;
-  std::mutex amplitude_integrals_mutex;
+  std::map<double,OutputData> results;
+  std::mutex results_mutex;
 
   // The following namespace defines material parameters. We use SI units.
   namespace MaterialParameters
@@ -135,6 +149,8 @@ namespace MembraneOscillation
 
     Vector<double> solution;
     Vector<double> system_rhs;
+
+    OutputData     output_data;
   };
 
 
@@ -673,23 +689,42 @@ namespace MembraneOscillation
 	  FEValues<dim> fe_values(mapping,
 			  fe,
 			  quadrature_formula,
-			  update_values | update_JxW_values);
+			  update_values | update_quadrature_points | update_JxW_values);
 
-	  double integral = 0;
-	  std::vector<double> function_values(n_q_points);
+	  double integral_solution = 0;
+          double integral_p = 0;
+
+	  double max_solution = 0;
+          double max_p = 0;
+
+          std::vector<double> function_values_solution(n_q_points);
+	  std::vector<double> function_values_p(n_q_points);
 	  for (auto cell : dof_handler.active_cell_iterators())
 	  {
-		  fe_values.reinit(cell);
-		  fe_values.get_function_values(solution, function_values);
-		  for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
-			  integral += function_values[q_point] * fe_values.JxW(q_point);
+            fe_values.reinit(cell);
+            fe_values.get_function_values(solution, function_values_solution);
+            RightHandSide<dim>(omega).value_list (fe_values.get_quadrature_points(),
+                                                  function_values_p);
+            
+            for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
+              {
+                integral_solution += function_values_solution[q_point] *
+                                     fe_values.JxW(q_point);
+                integral_p        += function_values_p[q_point] *
+                                     fe_values.JxW(q_point);
+
+                max_solution = std::max (max_solution,
+                                         std::abs(function_values_solution[q_point]));
+                max_p        = std::max (max_p,
+                                         std::abs(function_values_p[q_point]));
+              }
 	  }
 
-	  // Put the result into the output variable that we can
-	  // read from main(). Make sure that access to the variable is
-	  // properly guarded across threads.
-	  std::lock_guard<std::mutex> guard (amplitude_integrals_mutex);
-	  amplitude_integrals[omega] = integral;
+          output_data.normalized_amplitude_integral
+            = integral_solution/integral_p;
+          
+          output_data.normalized_maximum_amplitude
+            = max_solution/max_p;
   }
 
 
@@ -727,6 +762,13 @@ namespace MembraneOscillation
     output_results();
 
     postprocess();
+
+
+    // Put the result into the output variable that we can
+    // read from main(). Make sure that access to the variable is
+    // properly guarded across threads.
+    std::lock_guard<std::mutex> guard (results_mutex);
+    results[omega] = output_data;
   }
 } // namespace MembraneOscillation
 
@@ -756,11 +798,11 @@ int main()
 
       std::vector<double> frequencies;
       Threads::TaskGroup<> tasks;
-      for (double omega=1000; omega<=60000; omega*=1.02)
-    	  tasks += Threads::new_task ([=]() {
-                       BiharmonicProblem<2> biharmonic_problem(fe_degree, omega);
-                       biharmonic_problem.run();
-                   });
+      for (double omega=1000; omega<=10000; omega*=1.1)
+        tasks += Threads::new_task ([=]() {
+            BiharmonicProblem<2> biharmonic_problem(fe_degree, omega);
+            biharmonic_problem.run();
+          });
 
       tasks.join_all();
 
@@ -768,14 +810,16 @@ int main()
       // wait for all threads to release access to the variable. (This
       // is unnecessary here because we have joined all tasks, but
       // it doesn't hurt either.)
-	  std::lock_guard<std::mutex> guard (amplitude_integrals_mutex);
+	  std::lock_guard<std::mutex> guard (results_mutex);
       std::cout << "Number of frequencies computed: "
-                << amplitude_integrals.size() << std::endl;
+                << results.size() << std::endl;
       std::ofstream frequency_response ("frequency_response.txt");
-	  for (auto amplitude : amplitude_integrals)
-		  frequency_response << amplitude.first << ' '
-                                     << amplitude.second
-                                     << std::endl;
+      for (auto result : results)
+        frequency_response << result.first << ' '
+                           << result.second.normalized_amplitude_integral << ' '
+                           << result.second.normalized_maximum_amplitude << ' '
+                           << result.second.visualization_file_name
+                           << std::endl;
     }
   catch (std::exception &exc)
     {
