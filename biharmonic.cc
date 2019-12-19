@@ -667,64 +667,48 @@ namespace MembraneOscillation
   template <int dim>
   void BiharmonicProblem<dim>::postprocess()
   {
-// Comment in if desired, but we don't generally need errors
-//	  Vector<float> norm_per_cell(triangulation.n_active_cells());
-//      VectorTools::integrate_difference(mapping,
-//                                        dof_handler,
-//                                        solution,
-//                                        ExactSolution::Solution<dim>(),
-//                                        norm_per_cell,
-//                                        QGauss<dim>(fe.degree + 2),
-//                                        VectorTools::L2_norm);
-//      const double error_norm =
-//        VectorTools::compute_global_error(triangulation,
-//                                          norm_per_cell,
-//                                          VectorTools::L2_norm);
-//      std::cout << "   Error in the L2 norm:     " << error_norm
-//                << std::endl;
+    // Compute the integral of the absolute value of the solution.
+    const QGauss<dim>  quadrature_formula(fe.degree + 2);
+    const unsigned int n_q_points = quadrature_formula.size();
+    FEValues<dim> fe_values(mapping,
+                            fe,
+                            quadrature_formula,
+                            update_values | update_quadrature_points | update_JxW_values);
 
-	  // Compute the integral of the absolute value of the solution.
-	  const QGauss<dim>  quadrature_formula(fe.degree + 2);
-	  const unsigned int n_q_points = quadrature_formula.size();
-	  FEValues<dim> fe_values(mapping,
-			  fe,
-			  quadrature_formula,
-			  update_values | update_quadrature_points | update_JxW_values);
+    double integral_solution = 0;
+    double integral_p = 0;
 
-	  double integral_solution = 0;
-          double integral_p = 0;
+    double max_solution = 0;
+    double max_p = 0;
 
-	  double max_solution = 0;
-          double max_p = 0;
-
-          std::vector<double> function_values_solution(n_q_points);
-	  std::vector<double> function_values_p(n_q_points);
-	  for (auto cell : dof_handler.active_cell_iterators())
-	  {
-            fe_values.reinit(cell);
-            fe_values.get_function_values(solution, function_values_solution);
-            RightHandSide<dim>(omega).value_list (fe_values.get_quadrature_points(),
-                                                  function_values_p);
+    std::vector<double> function_values_solution(n_q_points);
+    std::vector<double> function_values_p(n_q_points);
+    for (auto cell : dof_handler.active_cell_iterators())
+      {
+        fe_values.reinit(cell);
+        fe_values.get_function_values(solution, function_values_solution);
+        RightHandSide<dim>(omega).value_list (fe_values.get_quadrature_points(),
+                                              function_values_p);
             
-            for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
-              {
-                integral_solution += function_values_solution[q_point] *
-                                     fe_values.JxW(q_point);
-                integral_p        += function_values_p[q_point] *
-                                     fe_values.JxW(q_point);
+        for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
+          {
+            integral_solution += function_values_solution[q_point] *
+                                 fe_values.JxW(q_point);
+            integral_p        += function_values_p[q_point] *
+                                 fe_values.JxW(q_point);
 
-                max_solution = std::max (max_solution,
-                                         std::abs(function_values_solution[q_point]));
-                max_p        = std::max (max_p,
-                                         std::abs(function_values_p[q_point]));
-              }
-	  }
+            max_solution = std::max (max_solution,
+                                     std::abs(function_values_solution[q_point]));
+            max_p        = std::max (max_p,
+                                     std::abs(function_values_p[q_point]));
+          }
+      }
 
-          output_data.normalized_amplitude_integral
-            = integral_solution/integral_p;
+    output_data.normalized_amplitude_integral
+      = integral_solution/integral_p;
           
-          output_data.normalized_maximum_amplitude
-            = max_solution/max_p;
+    output_data.normalized_maximum_amplitude
+      = max_solution/max_p;
   }
 
 
