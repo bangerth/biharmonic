@@ -745,12 +745,17 @@ namespace MembraneOscillation
     assemble_system();
     solve();
 
-    output_results();
+    // Run the generation of graphical output in the background...
+    Threads::Task<> output ([this]() { output_results(); });
 
+    // ...while also doing postprocessing.
     postprocess();
 
+    // Then wait for the graphical output task
+    output.join();
+    
 
-    // Put the result into the output variable that we can
+    // Finally, put the result into the output variable that we can
     // read from main(). Make sure that access to the variable is
     // properly guarded across threads.
     std::lock_guard<std::mutex> guard (results_mutex);
@@ -804,7 +809,7 @@ int main()
         frequency_response << result.first << ' '
                            << result.second.normalized_amplitude_integral << ' '
                            << result.second.normalized_maximum_amplitude << ' '
-                           << result.second.visualization_file_name
+                           << '"' << result.second.visualization_file_name << '"'
                            << std::endl;
     }
   catch (std::exception &exc)
