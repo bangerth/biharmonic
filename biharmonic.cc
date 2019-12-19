@@ -131,7 +131,7 @@ namespace MembraneOscillation
     void assemble_system();
     void solve();
     void postprocess();
-    void output_results() const;
+    void output_results();
 
     // The frequency that this instance of the class is supposed to solve for.
     const double omega;
@@ -717,17 +717,19 @@ namespace MembraneOscillation
   // It looks exactly like the one in step-6, for example.
   template <int dim>
   void
-  BiharmonicProblem<dim>::output_results() const
+  BiharmonicProblem<dim>::output_results()
   {
-// comment in if desired, but we don't generally need graphical output
-//	  DataOut<dim> data_out;
-//
-//	  data_out.attach_dof_handler(dof_handler);
-//	  data_out.add_data_vector(solution, "solution");
-//	  data_out.build_patches();
-//
-//	  std::ofstream output_vtu("solution-" + std::to_string(omega) + ".vtu");
-//	  data_out.write_vtu(output_vtu);
+    DataOut<dim> data_out;
+
+    data_out.attach_dof_handler(dof_handler);
+    data_out.add_data_vector(solution, "solution");
+    data_out.build_patches();
+
+    std::string file_name = "visualization/solution-" + std::to_string(omega) + ".vtu";
+    std::ofstream output_vtu(file_name);
+    data_out.write_vtu(output_vtu);
+
+    output_data.visualization_file_name = file_name;
   }
 
 
@@ -782,7 +784,7 @@ int main()
 
       std::vector<double> frequencies;
       Threads::TaskGroup<> tasks;
-      for (double omega=1000; omega<=10000; omega*=1.1)
+      for (double omega=1000; omega<=10000; omega*=1.5)
         tasks += Threads::new_task ([=]() {
             BiharmonicProblem<2> biharmonic_problem(fe_degree, omega);
             biharmonic_problem.run();
