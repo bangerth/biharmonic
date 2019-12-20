@@ -48,3 +48,23 @@ to just take the file name from the `frequency_response.txt` file to find which
 file corresponds to which frequency.
 
 
+# Terminating execution
+
+There may be times where callers of this program do not want it to continue with
+its computations. In this case, an external program should place the text `STOP`
+into a file called `termination_signal` in the current directory. This will
+not immediately terminate the program; instead, it will finish the computations
+for the input frequencies it is currently working on, but not start computations
+for any further frequencies. Since computations on each frequency typically take
+no more than a couple of seconds, this implies that the program terminates not
+long after. The last step of the program is to output data for all of the
+frequencies already computed into the `frequency_response.txt` file. In other
+words, one has to wait for the actual program termination before reading the
+results.
+
+The program works on input frequencies in an unpredictable order, since work
+for each frequency is scheduled with the operating system at the beginning
+of program execution, but it is the operating system's job to allocate CPU
+time for each of these tasks. This is often done in an unpredictable order.
+As a consequence, the frequencies already worked on at the time of termination
+may or may not be those listed first in the input file.
