@@ -47,6 +47,7 @@
 #include <fstream>
 #include <iostream>
 #include <cmath>
+#include <cstdio>
 
 
 namespace MembraneOscillation
@@ -72,6 +73,49 @@ namespace MembraneOscillation
   // need a mutex to guard access to it.
   std::map<double,OutputData> results;
   std::mutex results_mutex;
+
+
+  // Return whether an external program has left a signal that
+  // indicates that the current program run should terminate without
+  // computing any further frequency responses. This is done by
+  // placing the word "STOP" into the file "termination_signal" in the
+  // current directory.
+  bool check_for_termination_signal()
+  {
+    static bool termination_requested = false;
+
+    static std::mutex mutex;
+    std::lock_guard<std::mutex> lock_guard (mutex);
+
+    if (termination_requested == true)
+      return true;
+    
+    // Try and see whether we can open the file at all. If we can't,
+    // then no termination signal has been sent. If so, return 'true',
+    // but before that set a flag that ensures we don't have to do the
+    // expensive test with the file in any further calls
+    std::ifstream in("termination_signal");
+    if (!in)
+      {
+        termination_requested = false;
+        return false;
+      }
+
+    // OK, the file exists, but does it contain the right content?
+    std::string line;
+    std::getline(in, line);
+    if (line == "STOP")
+      {
+        termination_requested = true;
+        return true;
+      }
+
+    // The file exists, but it has the wrong content (or no content so
+    // far). This means no termination.
+    return false;
+  }
+
+  
 
   // The following namespace defines material parameters. We use SI units.
   namespace MaterialParameters
@@ -824,8 +868,21 @@ int main()
 
       std::vector<double> frequencies;
       Threads::TaskGroup<> tasks;
-      for (double omega=1000; omega<=10000; omega*=1.5)
+      for (double omega=1000; omega<=10000; omega*=1.05)
         tasks += Threads::new_task ([=]() {
+            // The main() function has created tasks for all frequencies
+            // provided by the caller, but there is the possibility that a
+            // higher instance has decided that the program needs to stop
+            // doing what it's doing. Check here, as this is the first
+            // non-trivial place one ends up when a task executes, whether we
+            // are supposed to actually do anything, or should instead stop
+            // working on the frequency this task corresponds to.
+            if (check_for_termination_signal() == true)
+              {
+                std::cout << "Aborting work on omega = " << omega << std::endl;
+                return;
+              }
+
             BiharmonicProblem<2> biharmonic_problem(fe_degree, omega);
             biharmonic_problem.run();
           });
@@ -846,6 +903,12 @@ int main()
                            << result.second.normalized_maximum_amplitude << ' '
                            << '"' << result.second.visualization_file_name << '"'
                            << std::endl;
+
+      // Whether or not a termination signal has been sent, try to
+      // remove the file that indicates this signal. That's because if
+      // we don't do that, the next call to this program won't produce
+      // anything at all.
+      std::remove ("terminate_signal");
     }
   catch (std::exception &exc)
     {
