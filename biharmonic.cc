@@ -908,7 +908,7 @@ int main()
       // remove the file that indicates this signal. That's because if
       // we don't do that, the next call to this program won't produce
       // anything at all.
-      std::remove ("terminate_signal");
+      std::remove ("termination_signal");
     }
   catch (std::exception &exc)
     {
