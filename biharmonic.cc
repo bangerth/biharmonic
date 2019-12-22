@@ -654,12 +654,13 @@ namespace MembraneOscillation
                      * jump_grad_j_dot_n        // [grad u n]
                     ) *
                     JxW[qpoint]; // dx
-
-                  // Ordinarily, the rhs vector would contain a term that makes sure the
-                  // boundary conditions of the form du/dn=h are taken care of. But for the
-                  // purposes of the current program, h=0 and so the additional term is
-                  // simply zero. So there is no term of that form we need to add here.
                 }
+
+
+              // Ordinarily, the rhs vector would contain a term that makes sure the
+              // boundary conditions of the form du/dn=h are taken care of. But for the
+              // purposes of the current program, h=0 and so the additional term is
+              // simply zero. So there is no term of that form we need to add here.              
             }
         }
     };
