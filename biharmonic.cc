@@ -123,15 +123,16 @@ namespace MembraneOscillation
   // The following namespace defines material parameters. We use SI units.
   namespace MaterialParameters
   {
-    constexpr double diameter           = 0.01;       // 10mm
-    constexpr double thickness          = 0.000050;   // 50 microns
-    constexpr double density            = 800;        // kg/m^3
-    constexpr ScalarType youngs_modulus = 0.3e9;      // 0.3*exp(j*4*180/pi)  GPa
-    constexpr double poissons_ratio     = 0.2;
+    const double diameter           = 0.01;       // 10mm
+    const double thickness          = 0.000050;   // 50 microns
+    const double density            = 800;        // kg/m^3
+    const ScalarType youngs_modulus = 0.3e9;      // 0.3*exp(j*4*180/pi)  GPa
+    const double poissons_ratio     = 0.2;
 
-    constexpr ScalarType tension        = 1;          // 1 N/m
-    constexpr double stiffness_D        = youngs_modulus * thickness * thickness * thickness
-                                          / 12 / (1 - poissons_ratio * poissons_ratio);
+    const ScalarType tension        = 1;          // 1 N/m
+    const ScalarType stiffness_D    = youngs_modulus *
+                                      ScalarType(thickness * thickness * thickness
+                                                 / 12 / (1 - poissons_ratio * poissons_ratio));
   }
 
 
@@ -238,7 +239,7 @@ namespace MembraneOscillation
 
     VectorTools::interpolate_boundary_values(dof_handler,
                                              0,
-                                             ZeroFunction<dim>(),
+                                             ZeroFunction<dim,ScalarType>(),
                                              constraints);
     constraints.close();
 
