@@ -48,19 +48,22 @@
 #include <iostream>
 #include <cmath>
 #include <cstdio>
+#include <complex>
 
 
 namespace MembraneOscillation
 {
   using namespace dealii;
 
+  using ScalarType = double;
+  
   // A data structure that is used to collect the results of the computations
   // for one frequency. The main class fills this for a given frequency
   // in various places of its member functions, and at the end puts it into
   // a global map.
   struct OutputData
   {
-    double normalized_amplitude_integral;
+    ScalarType normalized_amplitude_integral;
     double normalized_maximum_amplitude;
 
     std::string visualization_file_name;
@@ -120,14 +123,15 @@ namespace MembraneOscillation
   // The following namespace defines material parameters. We use SI units.
   namespace MaterialParameters
   {
-    constexpr double diameter       = 0.01;       // 10mm
-    constexpr double thickness      = 0.000050;   // 50 microns
-    constexpr double density        = 800;        // kg/m^3
-    constexpr double youngs_modulus = 0.3e9;      // 0.3*exp(j*4*180/pi)  GPa
-    constexpr double poissons_ratio = 0.2;
+    constexpr double diameter           = 0.01;       // 10mm
+    constexpr double thickness          = 0.000050;   // 50 microns
+    constexpr double density            = 800;        // kg/m^3
+    constexpr ScalarType youngs_modulus = 0.3e9;      // 0.3*exp(j*4*180/pi)  GPa
+    constexpr double poissons_ratio     = 0.2;
 
-    constexpr double tension        = 1;          // 1 N/m
-    constexpr double stiffness_D    = youngs_modulus * thickness * thickness * thickness / 12 / (1 - poissons_ratio * poissons_ratio);
+    constexpr ScalarType tension        = 1;          // 1 N/m
+    constexpr double stiffness_D        = youngs_modulus * thickness * thickness * thickness
+                                          / 12 / (1 - poissons_ratio * poissons_ratio);
   }
 
 
@@ -165,7 +169,7 @@ namespace MembraneOscillation
   {
   public:
     BiharmonicProblem(const unsigned int fe_degree,
-    		const double omega);
+                      const double omega);
 
     void run();
 
@@ -178,30 +182,30 @@ namespace MembraneOscillation
     void output_results();
 
     // The frequency that this instance of the class is supposed to solve for.
-    const double omega;
+    const double                  omega;
 
-    Triangulation<dim> triangulation;
+    Triangulation<dim>            triangulation;
 
-    MappingQ<dim> mapping;
+    MappingQ<dim>                 mapping;
 
-    FE_Q<dim>                 fe;
-    DoFHandler<dim>           dof_handler;
-    AffineConstraints<double> constraints;
+    FE_Q<dim>                     fe;
+    DoFHandler<dim>               dof_handler;
+    AffineConstraints<ScalarType> constraints;
 
-    SparsityPattern      sparsity_pattern;
-    SparseMatrix<double> system_matrix;
+    SparsityPattern               sparsity_pattern;
+    SparseMatrix<ScalarType>      system_matrix;
 
-    Vector<double> solution;
-    Vector<double> system_rhs;
+    Vector<ScalarType>            solution;
+    Vector<ScalarType>            system_rhs;
 
-    OutputData     output_data;
+    OutputData                    output_data;
   };
 
 
 
   template <int dim>
   BiharmonicProblem<dim>::BiharmonicProblem(const unsigned int fe_degree,
-		  const double omega)
+                                            const double omega)
     : omega (omega)
 	, mapping(1)
     , fe(fe_degree)
@@ -342,12 +346,12 @@ namespace MembraneOscillation
 
     struct FaceData
     {
-      FullMatrix<double>                   cell_matrix;
+      FullMatrix<ScalarType>                   cell_matrix;
       std::vector<types::global_dof_index> joint_dof_indices;
     };
 
-    FullMatrix<double>                   cell_matrix;
-    Vector<double>                       cell_rhs;
+    FullMatrix<ScalarType>                   cell_matrix;
+    Vector<ScalarType>                       cell_rhs;
     std::vector<types::global_dof_index> local_dof_indices;
     std::vector<FaceData>                face_data;
   };
@@ -760,13 +764,13 @@ namespace MembraneOscillation
                             quadrature_formula,
                             update_values | update_quadrature_points | update_JxW_values);
 
-    double integral_solution = 0;
+    ScalarType integral_solution = 0;
     double integral_p = 0;
 
     double max_solution = 0;
     double max_p = 0;
 
-    std::vector<double> function_values_solution(n_q_points);
+    std::vector<ScalarType> function_values_solution(n_q_points);
     std::vector<double> function_values_p(n_q_points);
     for (auto cell : dof_handler.active_cell_iterators())
       {
