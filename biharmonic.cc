@@ -55,7 +55,7 @@ namespace MembraneOscillation
 {
   using namespace dealii;
 
-  using ScalarType = double;
+  using ScalarType = std::complex<double>;
   
   // A data structure that is used to collect the results of the computations
   // for one frequency. The main class fills this for a given frequency
@@ -739,12 +739,83 @@ namespace MembraneOscillation
   // The show is essentially over at this point: The remaining functions are
   // not overly interesting or novel. The first one simply uses a direct
   // solver to solve the linear system (see also step-29):
+
+  namespace
+  {
+    void
+    split_complex_linear_system(const SparseMatrix<std::complex<double>> &A,
+                                const Vector<std::complex<double>> &      b,
+                                BlockSparseMatrix<double> &split_A,
+                                BlockVector<double> &      split_b)
+    {
+      Assert(A.m() == A.n(),
+             ExcMessage("The matrix in the linear system is not square."));
+      Assert(A.m() == b.size(),
+             ExcMessage("Matrix and right hand side sizes do not match."));
+
+      {
+        SparseMatrix<std::complex<double>>::const_iterator it_A = A.begin();
+        SparseMatrix<double>::iterator                     it_split_A_00 =
+          split_A.block(0, 0).begin();
+        SparseMatrix<double>::iterator it_split_A_01 =
+          split_A.block(0, 1).begin();
+        SparseMatrix<double>::iterator it_split_A_10 =
+          split_A.block(1, 0).begin();
+        SparseMatrix<double>::iterator it_split_A_11 =
+          split_A.block(1, 1).begin();
+
+        for (; it_A != A.end(); ++it_A)
+          {
+            std::complex<double> A_value = it_A->value();
+            it_split_A_00->value()       = std::real(A_value);
+            it_split_A_11->value()       = std::real(A_value);
+            it_split_A_01->value()       = std::imag(A_value);
+            it_split_A_10->value()       = -std::imag(A_value);
+          }
+      }
+
+      for (unsigned int i = 0; i < b.size(); ++i)
+        {
+          split_b.block(0)[i] = std::real(b[i]);
+          split_b.block(1)[i] = std::imag(b[i]);
+        }
+    }
+
+
+    void combine_complex_vector(BlockVector<double> &         u_split,
+                                Vector<std::complex<double>> &u)
+    {
+      for (unsigned int i = 0; i < u.size(); ++i)
+        u[i] = std::complex(u_split.block(0)[i], u_split.block(1)[i]);
+    }
+
+  } // namespace
+
+
   template <int dim>
   void BiharmonicProblem<dim>::solve()
   {
-    SparseDirectUMFPACK A_direct;
-    A_direct.initialize(system_matrix);
-    A_direct.vmult(solution, system_rhs);
+    const unsigned int n = system_rhs.size();
+
+    BlockSparsityPattern split_A_pattern(2, 2);
+    split_A_pattern.block(0, 0).copy_from(system_matrix.get_sparsity_pattern());
+    split_A_pattern.block(0, 1).copy_from(system_matrix.get_sparsity_pattern());
+    split_A_pattern.block(1, 0).copy_from(system_matrix.get_sparsity_pattern());
+    split_A_pattern.block(1, 1).copy_from(system_matrix.get_sparsity_pattern());
+    split_A_pattern.collect_sizes();
+
+    BlockSparseMatrix<double> split_A(split_A_pattern);
+
+    BlockVector<double> split_b;
+    split_b.reinit(2, n);
+    split_complex_linear_system(system_matrix, system_rhs, split_A, split_b);
+
+    SparseDirectUMFPACK direct_solver;
+    direct_solver.solve(split_A.block(0,0), split_b.block(0));
+
+    // The solution now resides in the `split_b` (block vector) variable.
+    // Put the solution back into the complex-valued solution vector.
+    combine_complex_vector(split_b, solution);
 
     constraints.distribute(solution);
   }
