@@ -908,9 +908,16 @@ int main()
       std::cout << "Number of frequencies computed: "
                 << results.size() << std::endl;
       std::ofstream frequency_response ("frequency_response.txt");
+      frequency_response << "# Columns are as follows:\n"
+                         << "# 1: Frequency\n"
+                         << "# 2: Real part of the amplitude divided by the amplitude of pressure\n"
+                         << "# 3: Imaginary part of the same\n"
+                         << "# 4: Absolute value of maximal displacement divided by amplitude of pressure\n"
+                         << "# 5: File name for graphical output of the displacement visualization.\n";
       for (auto result : results)
         frequency_response << result.first << ' '
-                           << result.second.normalized_amplitude_integral << ' '
+                           << std::real(result.second.normalized_amplitude_integral) << ' '
+                           << std::imag(result.second.normalized_amplitude_integral) << ' '
                            << result.second.normalized_maximum_amplitude << ' '
                            << '"' << result.second.visualization_file_name << '"'
                            << std::endl;

@@ -30,9 +30,12 @@ frequency omega, and in each line lists the following information:
   - The normalized response of the rigid membrane, as computed by the following
     equation:
       \int z(x,y) dx dy  /  \int P(x,y) dx dy
+    The output file contains both the real and imaginary component of
+    this quantity.
   - The normalized maximal displacement of the rigid membrane, as computed by the following
     equation:
       \max_{x,y} |z(x,y)|  /  \max_{x,y} |P(x,y)|
+    This is a real-valued quantity.
   - The name of the visualization file (see below) for this frequency.
 
 ### The directory `visualization/`
