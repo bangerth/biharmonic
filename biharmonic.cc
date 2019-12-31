@@ -123,14 +123,14 @@ namespace MembraneOscillation
   // The following namespace defines material parameters. We use SI units.
   namespace MaterialParameters
   {
-    const double diameter             = 0.01;       // 10mm
-    const double thickness            = 0.000050;   // 50 microns
-    const double density              = 800;        // kg/m^3
-    const double youngs_modulus_angle = 2*numbers::PI * 4./360.;
-    const ScalarType youngs_modulus   = 0.3e9 * std::exp(std::complex<double>(0.,youngs_modulus_angle)); // GPa
+    const double domain_extent        = 15./1000;   // 15mm
+    const double thickness            = 0.000100;   // 100 microns
+    const double density              = 100;        // kg/m^3
+    const double youngs_modulus_angle = 2*numbers::PI * 2./360.;
+    const ScalarType youngs_modulus   = 200e6 * std::exp(std::complex<double>(0.,youngs_modulus_angle)); // Pa
     const double poissons_ratio       = 0.2;
 
-    const ScalarType tension          = 1;          // 1 N/m
+    const ScalarType tension          = 30;          // 1 N/m
     const ScalarType stiffness_D      = youngs_modulus *
                                         ScalarType(thickness * thickness * thickness
                                                    / 12 / (1 - poissons_ratio * poissons_ratio));
@@ -223,8 +223,7 @@ namespace MembraneOscillation
   template <int dim>
   void BiharmonicProblem<dim>::make_grid()
   {
-    GridGenerator::hyper_ball(triangulation, Point<dim>(),
-                              MaterialParameters::diameter/2);
+    GridGenerator::hyper_cube(triangulation, 0, MaterialParameters::domain_extent);
     triangulation.refine_global(5);
   }
 
@@ -878,9 +877,12 @@ int main()
                         "only works if one uses elements of polynomial "
                         "degree at least 2."));
 
-      std::vector<double> frequencies;
+      const double min_omega = 5000;
+      const double max_omega = 150000;
+      
       Threads::TaskGroup<> tasks;
-      for (double omega=2000; omega<=6000; omega*=1.025)
+      unsigned int n_tasks = 0;
+      for (double omega=min_omega; omega<=max_omega; omega+=(max_omega-min_omega)/100, ++n_tasks)
         tasks += Threads::new_task ([=]() {
             // The main() function has created tasks for all frequencies
             // provided by the caller, but there is the possibility that a
@@ -898,6 +900,8 @@ int main()
             BiharmonicProblem<2> biharmonic_problem(fe_degree, omega);
             biharmonic_problem.run();
           });
+      std::cout << "Number of frequencies scheduled: "
+                << n_tasks << std::endl;
 
       tasks.join_all();
 
@@ -905,7 +909,7 @@ int main()
       // wait for all threads to release access to the variable. (This
       // is unnecessary here because we have joined all tasks, but
       // it doesn't hurt either.)
-	  std::lock_guard<std::mutex> guard (results_mutex);
+      std::lock_guard<std::mutex> guard (results_mutex);
       std::cout << "Number of frequencies computed: "
                 << results.size() << std::endl;
       std::ofstream frequency_response ("frequency_response.txt");
