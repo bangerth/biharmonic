@@ -123,16 +123,17 @@ namespace MembraneOscillation
   // The following namespace defines material parameters. We use SI units.
   namespace MaterialParameters
   {
-    const double diameter           = 0.01;       // 10mm
-    const double thickness          = 0.000050;   // 50 microns
-    const double density            = 800;        // kg/m^3
-    const ScalarType youngs_modulus = 0.3e9;      // 0.3*exp(j*4*180/pi)  GPa
-    const double poissons_ratio     = 0.2;
+    const double diameter             = 0.01;       // 10mm
+    const double thickness            = 0.000050;   // 50 microns
+    const double density              = 800;        // kg/m^3
+    const double youngs_modulus_angle = 2*numbers::PI * 4./360.;
+    const ScalarType youngs_modulus   = 0.3e9 * std::exp(std::complex<double>(0.,youngs_modulus_angle)); // GPa
+    const double poissons_ratio       = 0.2;
 
-    const ScalarType tension        = 1;          // 1 N/m
-    const ScalarType stiffness_D    = youngs_modulus *
-                                      ScalarType(thickness * thickness * thickness
-                                                 / 12 / (1 - poissons_ratio * poissons_ratio));
+    const ScalarType tension          = 1;          // 1 N/m
+    const ScalarType stiffness_D      = youngs_modulus *
+                                        ScalarType(thickness * thickness * thickness
+                                                   / 12 / (1 - poissons_ratio * poissons_ratio));
   }
 
 
@@ -879,7 +880,7 @@ int main()
 
       std::vector<double> frequencies;
       Threads::TaskGroup<> tasks;
-      for (double omega=1000; omega<=10000; omega*=1.05)
+      for (double omega=2000; omega<=6000; omega*=1.025)
         tasks += Threads::new_task ([=]() {
             // The main() function has created tasks for all frequencies
             // provided by the caller, but there is the possibility that a
