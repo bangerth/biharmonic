@@ -877,12 +877,13 @@ int main()
                         "only works if one uses elements of polynomial "
                         "degree at least 2."));
 
-      const double min_omega = 5000;
-      const double max_omega = 150000;
+      const double min_omega = 1000*2*numbers::PI;
+      const double max_omega = 15000*2*numbers::PI;
+      const unsigned int n_frequencies = 300;
       
       Threads::TaskGroup<> tasks;
       unsigned int n_tasks = 0;
-      for (double omega=min_omega; omega<=max_omega; omega+=(max_omega-min_omega)/100, ++n_tasks)
+      for (double omega=min_omega; omega<=max_omega; omega+=(max_omega-min_omega)/n_frequencies, ++n_tasks)
         tasks += Threads::new_task ([=]() {
             // The main() function has created tasks for all frequencies
             // provided by the caller, but there is the possibility that a
