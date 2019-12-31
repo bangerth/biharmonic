@@ -813,7 +813,7 @@ namespace MembraneOscillation
 
     data_out.attach_dof_handler(dof_handler);
     data_out.add_data_vector(solution, "solution");
-    data_out.build_patches();
+    data_out.build_patches(fe.degree);
 
     std::string file_name = "visualization/solution-" + std::to_string(omega) + ".vtu";
     std::ofstream output_vtu(file_name);
