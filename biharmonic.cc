@@ -654,15 +654,15 @@ namespace MembraneOscillation
                   copy_data_face.cell_matrix(i, j) +=
                     MaterialParameters::stiffness_D *
                     (-av_hessian_i_dot_n_dot_n  // - {grad^2 v n n }
-                     * jump_grad_j_dot_n        // [grad u n]
+                     * jump_grad_j_dot_n        //   * [grad u n]
                      //
                      -av_hessian_j_dot_n_dot_n  // - {grad^2 u n n }
-                     * jump_grad_i_dot_n        //  [grad v n]
+                     * jump_grad_i_dot_n        //   * [grad v n]
                      //
                      +
-                     2.0 * gamma *
-                     jump_grad_i_dot_n          // 2 gamma [grad v n]
-                     * jump_grad_j_dot_n        // [grad u n]
+                     gamma *                    // + gamma
+                     jump_grad_i_dot_n          //   * [grad v n]
+                     * jump_grad_j_dot_n        //   * [grad u n]
                     ) *
                     JxW[qpoint]; // dx
                 }
