@@ -56,6 +56,25 @@ namespace MembraneOscillation
   using namespace dealii;
 
   using ScalarType = std::complex<double>;
+
+
+  // The following namespace defines material parameters. We use SI units.
+  namespace MaterialParameters
+  {
+    const double domain_extent        = 15./1000;   // 15mm
+    const double thickness            = 0.000100;   // 100 microns
+    const double density              = 100;        // kg/m^3
+    const double youngs_modulus_angle = 2*numbers::PI * 2./360.;
+    const ScalarType youngs_modulus   = 200e6 * std::exp(std::complex<double>(0.,youngs_modulus_angle)); // Pa
+    const double poissons_ratio       = 0.3;
+
+    const ScalarType tension          = 30;          // 1 N/m
+    const ScalarType stiffness_D      = youngs_modulus *
+                                        ScalarType(thickness * thickness * thickness
+                                                   / 12 / (1 - poissons_ratio * poissons_ratio));
+  }
+
+
   
   // A data structure that is used to collect the results of the computations
   // for one frequency. The main class fills this for a given frequency
@@ -119,23 +138,6 @@ namespace MembraneOscillation
   }
 
   
-
-  // The following namespace defines material parameters. We use SI units.
-  namespace MaterialParameters
-  {
-    const double domain_extent        = 15./1000;   // 15mm
-    const double thickness            = 0.000100;   // 100 microns
-    const double density              = 100;        // kg/m^3
-    const double youngs_modulus_angle = 2*numbers::PI * 2./360.;
-    const ScalarType youngs_modulus   = 200e6 * std::exp(std::complex<double>(0.,youngs_modulus_angle)); // Pa
-    const double poissons_ratio       = 0.3;
-
-    const ScalarType tension          = 30;          // 1 N/m
-    const ScalarType stiffness_D      = youngs_modulus *
-                                        ScalarType(thickness * thickness * thickness
-                                                   / 12 / (1 - poissons_ratio * poissons_ratio));
-  }
-
 
   template <int dim>
   class RightHandSide : public Function<dim>
