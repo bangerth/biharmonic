@@ -973,7 +973,7 @@ int main()
            omega<=MaterialParameters::max_omega;
            omega+=(MaterialParameters::max_omega-MaterialParameters::min_omega)/MaterialParameters::n_frequencies,
            ++n_tasks)
-        Threads::new_task ([=]() {
+        tasks += Threads::new_task ([=]() {
             // The main() function has created tasks for all frequencies
             // provided by the caller, but there is the possibility that a
             // higher instance has decided that the program needs to stop
@@ -989,7 +989,7 @@ int main()
 
             BiharmonicProblem<2> biharmonic_problem(fe_degree, omega);
             biharmonic_problem.run();
-          }).join();
+          });
       std::cout << "Number of frequencies scheduled: "
                 << n_tasks << std::endl;
 
