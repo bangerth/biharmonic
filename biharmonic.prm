@@ -1,0 +1,11 @@
+set Domain edge length        = 0.015
+set Thickness                 = 0.0001
+set Density                   = 100
+set Loss angle                = 2
+set Young's modulus           = 200e6
+set Poisson's ratio           = 0.3
+set Tension                   = 30
+
+set Minimal frequency         = 100
+set Maximal frequency         = 10000
+set Number of frequency steps = 100

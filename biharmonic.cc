@@ -9,6 +9,7 @@
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/function.h>
 #include <deal.II/base/thread_management.h>
+#include <deal.II/base/parameter_handler.h>
 
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/vector.h>
@@ -61,19 +62,96 @@ namespace MembraneOscillation
   // The following namespace defines material parameters. We use SI units.
   namespace MaterialParameters
   {
-    const double domain_extent        = 15./1000;   // 15mm
-    const double thickness            = 0.000100;   // 100 microns
-    const double density              = 100;        // kg/m^3
-    const double youngs_modulus_angle = 2*numbers::PI * 2./360.;
-    const ScalarType youngs_modulus   = 200e6 * std::exp(std::complex<double>(0.,youngs_modulus_angle)); // Pa
-    const double poissons_ratio       = 0.3;
+    double domain_extent;
+    double density;
+    double thickness;
+    ScalarType tension;
+    ScalarType stiffness_D;
 
-    const ScalarType tension          = 30;          // 1 N/m
-    const ScalarType stiffness_D      = youngs_modulus *
-                                        ScalarType(thickness * thickness * thickness
-                                                   / 12 / (1 - poissons_ratio * poissons_ratio));
+    double min_omega = 100*2*numbers::PI;
+    double max_omega = 10000*2*numbers::PI;
+    unsigned int n_frequencies = 100;
   }
 
+
+  void
+  declare_parameters (ParameterHandler &prm)
+  {
+    prm.declare_entry ("Domain edge length", "0.015",
+                       Patterns::Double(0),
+                       "The edge length of the square domain. Units: [m].");
+    prm.declare_entry ("Thickness", "0.0001",
+                       Patterns::Double(0),
+                       "Thickness of the membrane. Units: [m].");
+    prm.declare_entry ("Density", "100",
+                       Patterns::Double(0),
+                       "Volumetric density of the membrane material. Units: [kg/m^3].");
+    prm.declare_entry ("Loss angle", "2",
+                       Patterns::Double(0,90),
+                       "The angle used to make the Young's modulus complex-valued. "
+                       "Units: [degrees].");
+    prm.declare_entry ("Young's modulus", "200e6",
+                       Patterns::Double(0),
+                       "The magnitude of the Young's modulus. Units: [Pa].");
+    prm.declare_entry ("Poisson's ratio", "0.3",
+                       Patterns::Double(0,0.5),
+                       "Poisson's ratio. Units: none.");
+    prm.declare_entry ("Tension", "30",
+                       Patterns::Double(0),
+                       "The tension coefficient T that describes the membrane part of "
+                       "the material behavior. Units: [N/m].");
+
+    prm.declare_entry ("Minimal frequency", "100",
+                       Patterns::Double(0),
+                       "The minimal frequency to consider. Units: [Hz].");    
+    prm.declare_entry ("Maximal frequency", "10000",
+                       Patterns::Double(0),
+                       "The maximal frequency to consider. Units: [Hz].");
+    prm.declare_entry ("Number of frequency steps", "100",
+                       Patterns::Integer(1,10000),
+                       "The number of frequency steps into which the frequency "
+                       "range is to be subdivided. Units: none.");
+  }
+
+
+  void
+  read_parameters (ParameterHandler &prm)
+  {
+    // First read parameter values from the input file 'biharmonic.prm'
+    prm.parse_input ("biharmonic.prm");
+    
+
+    
+    using namespace MaterialParameters;
+    
+    // First get the independent parameters from the input file:
+    double loss_angle, E, poissons_ratio;
+    
+    domain_extent  = prm.get_double ("Domain edge length");
+    thickness      = prm.get_double ("Thickness");
+    density        = prm.get_double ("Density");
+    loss_angle     = prm.get_double ("Loss angle");
+    E              = prm.get_double ("Young's modulus");
+    poissons_ratio = prm.get_double ("Poisson's ratio");
+    tension        = prm.get_double ("Tension");
+
+    min_omega = prm.get_double ("Minimal frequency") * 2 * numbers::PI;
+    max_omega = prm.get_double ("Maximal frequency") * 2 * numbers::PI;
+    n_frequencies = prm.get_integer ("Number of frequency steps");
+    
+
+    // Then compute the dependent ones. Note that we interpret the angle in degrees.
+    const ScalarType youngs_modulus
+      = E * std::exp(std::complex<double>(0,2*numbers::PI*loss_angle/360));
+
+    stiffness_D
+      = (youngs_modulus *
+         ScalarType(thickness * thickness * thickness
+                    / 12 / (1 - poissons_ratio * poissons_ratio)));
+  }
+  
+
+  
 
   
   // A data structure that is used to collect the results of the computations
@@ -881,13 +959,20 @@ int main()
                         "only works if one uses elements of polynomial "
                         "degree at least 2."));
 
-      const double min_omega = 100*2*numbers::PI;
-      const double max_omega = 10000*2*numbers::PI;
-      const unsigned int n_frequencies = 100;
+      // Get the global set of parameters from an input file
+      {
+        ParameterHandler prm;
+        declare_parameters(prm);
+        read_parameters(prm);
+      }
       
+      // Then sweep over the frequencies.
       Threads::TaskGroup<> tasks;
       unsigned int n_tasks = 0;
-      for (double omega=min_omega; omega<=max_omega; omega+=(max_omega-min_omega)/n_frequencies, ++n_tasks)
+      for (double omega=MaterialParameters::min_omega;
+           omega<=MaterialParameters::max_omega;
+           omega+=(MaterialParameters::max_omega-MaterialParameters::min_omega)/MaterialParameters::n_frequencies,
+           ++n_tasks)
         Threads::new_task ([=]() {
             // The main() function has created tasks for all frequencies
             // provided by the caller, but there is the possibility that a

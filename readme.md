@@ -32,24 +32,31 @@ fourth order problems and historically, many complicated modifications have been
 made to it for this kind of problem. Here, we instead rely on the "`C^O` Interior
 Penalty" (C0IP) method by Brenner et al. The method is published in the following
 article:
-```
-@article{Brenner2005,
-  doi = {10.1007/s10915-004-4135-7},
-  url = {https://doi.org/10.1007/s10915-004-4135-7},
-  year = {2005},
-  month = jun,
-  publisher = {Springer Science and Business Media {LLC}},
-  volume = {22-23},
-  number = {1-3},
-  pages = {83--118},
-  author = {Susanne C. Brenner and Li-Yeng Sung},
-  title = {$C^0$ Interior Penalty Methods for Fourth Order Elliptic Boundary Value Problems on Polygonal Domains},
-  journal = {Journal of Scientific Computing}
-}
-```
+
+>   Susanne C. Brenner and Li-Yeng Sung:
+>   "$C^0$ Interior Penalty Methods for Fourth Order Elliptic Boundary Value Problems on Polygonal Domains",
+>   Journal of Scientific Computing, vol. 22-23, pp. 83-118, 2005.
 
 
 # Input
+
+The program reads the parameter values that determine what is to be computed from a
+file called `biharmonic.prm`. This file looks as follows:
+```
+set Domain edge length        = 0.015
+set Thickness                 = 0.0001
+set Density                   = 100
+set Loss angle                = 2
+set Young's modulus           = 200e6
+set Poisson's ratio           = 0.3
+set Tension                   = 30
+
+set Minimal frequency         = 100
+set Maximal frequency         = 10000
+set Number of frequency steps = 100
+```
+All parameters are given in SI units. `Loss angle` is dimensionless and interpreted
+in degrees. The minimal and maximal frequencies are intrepreted in Hz.
 
 
 # Output
@@ -91,8 +98,9 @@ all of the information necessary to visualize the solution. The format used for 
 files is VTU, and the solution can be visualized with either the
 [Visit](https://wci.llnl.gov/simulation/computer-codes/visit) or
 [Paraview](https://www.paraview.org/) programs.
-The file names are of the form `visualization/solution-XXXX.XXXXX.vtu` where `XXXX.XXXXX`
-denotes the frequency at which the solution is computed. However, it is easiest
+The file names are of the form `visualization/solution-XXXXX.vtu` where `XXXXX`
+denotes the (integer part of the) frequency (in Hz) at which the solution
+is computed. However, it is easiest
 to just take the file name from the `frequency_response.txt` file to find which
 file corresponds to which frequency.
 
