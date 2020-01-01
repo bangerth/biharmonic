@@ -128,7 +128,7 @@ namespace MembraneOscillation
     const double density              = 100;        // kg/m^3
     const double youngs_modulus_angle = 2*numbers::PI * 2./360.;
     const ScalarType youngs_modulus   = 200e6 * std::exp(std::complex<double>(0.,youngs_modulus_angle)); // Pa
-    const double poissons_ratio       = 0.2;
+    const double poissons_ratio       = 0.3;
 
     const ScalarType tension          = 30;          // 1 N/m
     const ScalarType stiffness_D      = youngs_modulus *
@@ -795,7 +795,7 @@ namespace MembraneOscillation
       }
 
     output_data.normalized_amplitude_integral
-      = integral_solution/integral_p;
+      = integral_solution/max_p;
           
     output_data.normalized_maximum_amplitude
       = max_solution/max_p;
@@ -815,7 +815,9 @@ namespace MembraneOscillation
     data_out.add_data_vector(solution, "solution");
     data_out.build_patches(fe.degree);
 
-    std::string file_name = "visualization/solution-" + std::to_string(omega) + ".vtu";
+    std::string file_name = "visualization/solution-" +
+                            std::to_string(static_cast<unsigned int>(omega/2/numbers::PI)) +
+                            ".vtu";
     std::ofstream output_vtu(file_name);
     data_out.write_vtu(output_vtu);
 
@@ -877,14 +879,14 @@ int main()
                         "only works if one uses elements of polynomial "
                         "degree at least 2."));
 
-      const double min_omega = 1000*2*numbers::PI;
-      const double max_omega = 15000*2*numbers::PI;
-      const unsigned int n_frequencies = 300;
+      const double min_omega = 100*2*numbers::PI;
+      const double max_omega = 10000*2*numbers::PI;
+      const unsigned int n_frequencies = 100;
       
       Threads::TaskGroup<> tasks;
       unsigned int n_tasks = 0;
       for (double omega=min_omega; omega<=max_omega; omega+=(max_omega-min_omega)/n_frequencies, ++n_tasks)
-        tasks += Threads::new_task ([=]() {
+        Threads::new_task ([=]() {
             // The main() function has created tasks for all frequencies
             // provided by the caller, but there is the possibility that a
             // higher instance has decided that the program needs to stop
@@ -900,7 +902,7 @@ int main()
 
             BiharmonicProblem<2> biharmonic_problem(fe_degree, omega);
             biharmonic_problem.run();
-          });
+          }).join();
       std::cout << "Number of frequencies scheduled: "
                 << n_tasks << std::endl;
 
@@ -915,18 +917,29 @@ int main()
                 << results.size() << std::endl;
       std::ofstream frequency_response ("frequency_response.txt");
       frequency_response << "# Columns are as follows:\n"
-                         << "# 1: Frequency\n"
-                         << "# 2: Real part of the amplitude divided by the amplitude of pressure\n"
+                         << "# 1: Frequency [Hz]\n"
+                         << "# 2: Real part of the volume displacement divided by the amplitude of pressure [m^3/Pa]\n"
                          << "# 3: Imaginary part of the same\n"
-                         << "# 4: Absolute value of maximal displacement divided by amplitude of pressure\n"
+                         << "# 4: Real part of the impedance [Pa.s/m^3]\n"
+                         << "# 5: Imaginary part of the same\n"
+                         << "# 6: Absolute value of maximal displacement divided by amplitude of pressure [m/Pa]\n"
                          << "# 5: File name for graphical output of the displacement visualization.\n";
       for (auto result : results)
-        frequency_response << result.first << ' '
-                           << std::real(result.second.normalized_amplitude_integral) << ' '
-                           << std::imag(result.second.normalized_amplitude_integral) << ' '
-                           << result.second.normalized_maximum_amplitude << ' '
-                           << '"' << result.second.visualization_file_name << '"'
-                           << std::endl;
+        {
+          const auto omega = result.first;
+          const auto impedance = 1./result.second.normalized_amplitude_integral
+                                 /omega/std::complex<double>(0.,1.);
+          
+          frequency_response << omega/2/numbers::PI << ' '
+                             << std::real(result.second.normalized_amplitude_integral) << ' '
+                             << std::imag(result.second.normalized_amplitude_integral) << ' '
+                             << std::real(impedance) << ' '
+                             << std::imag(impedance) << ' '
+                             << result.second.normalized_maximum_amplitude << ' '
+                             << '"' << result.second.visualization_file_name << '"'
+                             << std::endl;
+        }
+      
 
       // Whether or not a termination signal has been sent, try to
       // remove the file that indicates this signal. That's because if
