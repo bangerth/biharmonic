@@ -613,7 +613,7 @@ namespace MembraneOscillation
       // further adjusted if one were to use hanging nodes resulting from
       // adaptive mesh refinement.
       const unsigned int p = fe.degree;
-      const double       gamma =
+      const double       gamma_over_h =
         std::max((1.0 * p * (p + 1) /
                   cell->extent_in_direction(
                     GeometryInfo<dim>::unit_normal_direction[f])),
@@ -657,9 +657,9 @@ namespace MembraneOscillation
                      -
                      av_hessian_j_dot_n_dot_n // - {grad^2 u n n }
                      * jump_grad_i_dot_n // [grad v n]
-                     // gamma [grad u n ][grad v n]:
                      +
-                     gamma
+                     // gamma/h [grad u n ][grad v n]:
+                     gamma_over_h
                      * jump_grad_i_dot_n
                      * jump_grad_j_dot_n
                     )
@@ -702,7 +702,7 @@ namespace MembraneOscillation
       // face (as we are on the boundary), the computation of the penalty
       // factor $\gamma$ is substantially simpler:
       const unsigned int p = fe.degree;
-      const double       gamma =
+      const double       gamma_over_h =
         (1.0 * p * (p + 1) /
          cell->extent_in_direction(
            GeometryInfo<dim>::unit_normal_direction[face_no]));
@@ -739,7 +739,7 @@ namespace MembraneOscillation
                      * jump_grad_i_dot_n        //   * [grad v n]
                      //
                      +
-                     gamma *                    // + gamma
+                     gamma_over_h *             // + gamma_over_h
                      jump_grad_i_dot_n          //   * [grad v n]
                      * jump_grad_j_dot_n        //   * [grad u n]
                     ) *
