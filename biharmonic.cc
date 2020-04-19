@@ -73,6 +73,9 @@ namespace MembraneOscillation
     unsigned int n_frequencies = 100;
   }
 
+  unsigned int fe_degree = 2;
+  unsigned int n_mesh_refinement_steps = 5;
+
 
   void
   declare_parameters (ParameterHandler &prm)
@@ -111,6 +114,14 @@ namespace MembraneOscillation
                        Patterns::Integer(1,10000),
                        "The number of frequency steps into which the frequency "
                        "range is to be subdivided. Units: none.");
+
+    prm.declare_entry ("Number of mesh refinement steps", "5",
+                       Patterns::Integer(1,10),
+                       "The number of global mesh refinement steps applied "
+                       "to the coarse mesh.");
+    prm.declare_entry ("Finite element polynomial degree", "2",
+                       Patterns::Integer(1,5),
+                       "The polynomial degree to be used for the finite element.");
   }
 
 
@@ -148,6 +159,14 @@ namespace MembraneOscillation
       = (youngs_modulus *
          ScalarType(thickness * thickness * thickness
                     / 12 / (1 - poissons_ratio * poissons_ratio)));
+
+    fe_degree               = prm.get_integer ("Finite element polynomial degree");
+    n_mesh_refinement_steps = prm.get_integer ("Number of mesh refinement steps");
+
+    Assert(fe_degree >= 2,
+           ExcMessage("The C0IP formulation for the biharmonic problem "
+                      "only works if one uses elements of polynomial "
+                      "degree at least 2."));
   }
   
 
@@ -250,8 +269,7 @@ namespace MembraneOscillation
   class BiharmonicProblem
   {
   public:
-    BiharmonicProblem(const unsigned int fe_degree,
-                      const double omega);
+    BiharmonicProblem(const double omega);
 
     void run();
 
@@ -286,11 +304,10 @@ namespace MembraneOscillation
 
 
   template <int dim>
-  BiharmonicProblem<dim>::BiharmonicProblem(const unsigned int fe_degree,
-                                            const double omega)
+  BiharmonicProblem<dim>::BiharmonicProblem(const double omega)
     : omega (omega)
-	, mapping(1)
-    , fe(fe_degree)
+    , mapping(1)
+    , fe(MembraneOscillation::fe_degree)
     , dof_handler(triangulation)
   {}
 
@@ -304,7 +321,7 @@ namespace MembraneOscillation
   void BiharmonicProblem<dim>::make_grid()
   {
     GridGenerator::hyper_cube(triangulation, 0, MaterialParameters::domain_extent);
-    triangulation.refine_global(5);
+    triangulation.refine_global(MembraneOscillation::n_mesh_refinement_steps);
   }
 
 
@@ -953,12 +970,6 @@ int main()
       using namespace dealii;
       using namespace MembraneOscillation;
 
-      const unsigned int fe_degree = 2;
-      Assert(fe_degree >= 2,
-             ExcMessage("The C0IP formulation for the biharmonic problem "
-                        "only works if one uses elements of polynomial "
-                        "degree at least 2."));
-
       // Get the global set of parameters from an input file
       {
         ParameterHandler prm;
@@ -987,7 +998,7 @@ int main()
                 return;
               }
 
-            BiharmonicProblem<2> biharmonic_problem(fe_degree, omega);
+            BiharmonicProblem<2> biharmonic_problem(omega);
             biharmonic_problem.run();
           });
       std::cout << "Number of frequencies scheduled: "
