@@ -91,6 +91,24 @@ frequency omega, and in each line lists the following information:
     This is a real-valued quantity. Its units are `m/Pa`.
   - The name of the visualization file (see below) for this frequency.
 
+
+### Monitoring progress
+
+The `frequency_response.txt` file is updated every time the program
+has finished computing the response of the membrane for a particular
+frequency. As a consequence, the file contains a record of all
+computed frequencies.
+
+To monitor the progress of computations -- for example for displaying
+a progress bar -- open this file periodically (say, once a second) and
+read what's in it. If all you want is to show progress, count the
+number of lines excluding the comments at the top and divide it by the
+number of frequencies provided as input. If you want something
+fancier, you can actually parse the contents of the file and update a
+graph of the frequency-dependent membrane response every time you read
+through the file. This way, the graph will fill in over time.
+
+
 ### The directory `visualization/`
 
 This directory contains one file for each input frequency, with each file providing
