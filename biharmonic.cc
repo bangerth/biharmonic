@@ -1021,7 +1021,7 @@ int main()
                          << "# 4: Real part of the impedance [Pa.s/m^3]\n"
                          << "# 5: Imaginary part of the same\n"
                          << "# 6: Absolute value of maximal displacement divided by amplitude of pressure [m/Pa]\n"
-                         << "# 5: File name for graphical output of the displacement visualization.\n";
+                         << "# 7: File name for graphical output of the displacement visualization.\n";
       for (auto result : results)
         {
           const auto omega = result.first;
