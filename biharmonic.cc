@@ -1038,9 +1038,12 @@ int main()
       
       // Then sweep over the frequencies.
       std::vector<std::future<void>> tasks;
-      for (double omega=MaterialParameters::min_omega;
-           omega<=MaterialParameters::max_omega;
-           omega+=(MaterialParameters::max_omega-MaterialParameters::min_omega)/MaterialParameters::n_frequencies)
+      const double delta_omega = (MaterialParameters::max_omega
+                                  -MaterialParameters::min_omega)
+                                 / MaterialParameters::n_frequencies;
+      for (double omega = MaterialParameters::min_omega;
+           omega <= MaterialParameters::max_omega;
+           omega += delta_omega)
         tasks.emplace_back (std::async (std::launch::async,
                                         [=]() { solve_one_frequency (omega); }));
 
