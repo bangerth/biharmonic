@@ -1050,13 +1050,13 @@ int main()
       
       std::cout << "Number of frequencies scheduled: "
                 << tasks.size() << std::endl;
-      std::cout << "Number of frequencies computed: "
-                << results.size() << std::endl;
 
       // Now wait for it all:
       for (const auto &task : tasks)
         task.wait();
-      
+
+      std::cout << "Number of frequencies computed: "
+                << results.size() << std::endl;      
 
       // Whether or not a termination signal has been sent, try to
       // remove the file that indicates this signal. That's because if
