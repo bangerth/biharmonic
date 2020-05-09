@@ -1001,45 +1001,53 @@ int main()
 
             BiharmonicProblem<2> biharmonic_problem(omega);
             biharmonic_problem.run();
+
+            // We have just finished another frequency. The 'run()'
+            // function just called will have put its results into a
+            // shared std::map. Re-create the output file based on
+            // what's now in this std::map so that the current state
+            // of the computations is kept up-to-date in real-time and
+            // can be looked up in the output file.
+            //
+            // Make sure that we wait for all threads to release
+            // access to the variable. The lock also makes sure that
+            // only one thread at a time accesses the output file.
+            std::lock_guard<std::mutex> guard (results_mutex);
+            std::cout << "Number of frequencies computed: "
+                      << results.size() << std::endl;
+            std::ofstream frequency_response ("frequency_response.txt");
+            frequency_response << "# Columns are as follows:\n"
+                               << "# 1: Frequency [Hz]\n"
+                               << "# 2: Real part of the volume displacement divided by the amplitude of pressure [m^3/Pa]\n"
+                               << "# 3: Imaginary part of the same\n"
+                               << "# 4: Real part of the impedance [Pa.s/m^3]\n"
+                               << "# 5: Imaginary part of the same\n"
+                               << "# 6: Absolute value of maximal displacement divided by amplitude of pressure [m/Pa]\n"
+                               << "# 7: File name for graphical output of the displacement visualization.\n";
+            for (auto result : results)
+              {
+                const auto omega = result.first;
+                const auto impedance = 1./result.second.normalized_amplitude_integral
+                                       /omega/std::complex<double>(0.,1.);
+          
+                frequency_response << omega/2/numbers::PI << ' '
+                                   << std::real(result.second.normalized_amplitude_integral) << ' '
+                                   << std::imag(result.second.normalized_amplitude_integral) << ' '
+                                   << std::real(impedance) << ' '
+                                   << std::imag(impedance) << ' '
+                                   << result.second.normalized_maximum_amplitude << ' '
+                                   << '"' << result.second.visualization_file_name << '"'
+                                   << std::endl;
+              }
                        }));
+
+      
       std::cout << "Number of frequencies scheduled: "
                 << tasks.size() << std::endl;
 
       // Now wait for it all:
       for (const auto &task : tasks)
         task.wait();
-
-      // Output everything previously computed. Make sure that we
-      // wait for all threads to release access to the variable. (This
-      // is unnecessary here because we have joined all tasks, but
-      // it doesn't hurt either.)
-      std::lock_guard<std::mutex> guard (results_mutex);
-      std::cout << "Number of frequencies computed: "
-                << results.size() << std::endl;
-      std::ofstream frequency_response ("frequency_response.txt");
-      frequency_response << "# Columns are as follows:\n"
-                         << "# 1: Frequency [Hz]\n"
-                         << "# 2: Real part of the volume displacement divided by the amplitude of pressure [m^3/Pa]\n"
-                         << "# 3: Imaginary part of the same\n"
-                         << "# 4: Real part of the impedance [Pa.s/m^3]\n"
-                         << "# 5: Imaginary part of the same\n"
-                         << "# 6: Absolute value of maximal displacement divided by amplitude of pressure [m/Pa]\n"
-                         << "# 7: File name for graphical output of the displacement visualization.\n";
-      for (auto result : results)
-        {
-          const auto omega = result.first;
-          const auto impedance = 1./result.second.normalized_amplitude_integral
-                                 /omega/std::complex<double>(0.,1.);
-          
-          frequency_response << omega/2/numbers::PI << ' '
-                             << std::real(result.second.normalized_amplitude_integral) << ' '
-                             << std::imag(result.second.normalized_amplitude_integral) << ' '
-                             << std::real(impedance) << ' '
-                             << std::imag(impedance) << ' '
-                             << result.second.normalized_maximum_amplitude << ' '
-                             << '"' << result.second.visualization_file_name << '"'
-                             << std::endl;
-        }
       
 
       // Whether or not a termination signal has been sent, try to
