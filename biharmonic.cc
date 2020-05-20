@@ -987,8 +987,19 @@ namespace MembraneOscillation
         return;
       }
 
-    BiharmonicProblem<2> biharmonic_problem(omega);
-    biharmonic_problem.run();
+    try
+      {
+        BiharmonicProblem<2> biharmonic_problem(omega);
+        biharmonic_problem.run();
+      }
+    catch (const std::exception &exc)
+      {
+        std::cerr << "Exception while computing for frequency "
+                  << omega/2/numbers::PI << ":\n"
+                  << exc.what() << std::endl;
+        throw;
+      }
+
 
     // We have just finished another frequency. The 'run()' function
     // just called will have put its results into a shared
