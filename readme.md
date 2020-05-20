@@ -54,6 +54,9 @@ set Tension                   = 30
 set Minimal frequency         = 100
 set Maximal frequency         = 10000
 set Number of frequency steps = 100
+
+set Number of mesh refinement steps  = 5
+set Finite element polynomial degree = 2
 ```
 All parameters are given in SI units. `Loss angle` is dimensionless and interpreted
 in degrees. The minimal and maximal frequencies are intrepreted in Hz.
