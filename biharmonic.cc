@@ -292,6 +292,15 @@ namespace MembraneOscillation
 
     FE_Q<dim>                     fe;
     DoFHandler<dim>               dof_handler;
+
+    // The object that deals with constraints on the solution vector,
+    // e.g., from boundary values or hanging nodes. The deal.II
+    // library has a bug in that this class cannot be used with
+    // DEAL_II_WITH_THREADS=OFF if one explicitly uses std::thread or
+    // std::async, see #10285. Specifically, this is because in that
+    // case, it keeps a global variable that different threads will
+    // then compete for. To work around this, we have to lock all uses
+    // of the AffineConstraints class with a mutex.
     AffineConstraints<ScalarType> constraints;
     static std::mutex             constraints_lock;
 
