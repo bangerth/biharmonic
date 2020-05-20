@@ -935,6 +935,10 @@ namespace MembraneOscillation
                             std::to_string(static_cast<unsigned int>(omega/2/numbers::PI)) +
                             ".vtu";
     std::ofstream output_vtu(file_name);
+    AssertThrow (output_vtu,
+                 ExcMessage ("The file <" + file_name +
+                             "> can not be written to when trying to write "
+                             "visualization data."));
     data_out.write_vtu(output_vtu);
 
     output_data.visualization_file_name = file_name;
