@@ -57,9 +57,28 @@ set Number of frequency steps = 100
 
 set Number of mesh refinement steps  = 5
 set Finite element polynomial degree = 2
+
+set Number of threads         = 0
 ```
 All parameters are given in SI units. `Loss angle` is dimensionless and interpreted
 in degrees. The minimal and maximal frequencies are intrepreted in Hz.
+
+The third block of parameters shown above describes properties of the
+discretization, i.e., of _how_ the problem (formulated as a PDE)
+should be solved rather than what the problem actually is. In
+particular, the parameters list the number of mesh refinement steps
+(each refinement step replaces each cell of the mesh by its four
+children) as well as the polynomial degree of the finite element
+approximation.
+
+The last parameter, `Number of threads`, indicates how many threads
+the program may use at any given time. Threads are used to compute
+the frequency response for different frequencies at the same time
+since these are independent computations. A value of zero means that
+the program may use as many threads as it pleases, whereas a positive
+number limits how many threads (and consequently CPU cores) the
+program will use.
+
 
 
 # Output

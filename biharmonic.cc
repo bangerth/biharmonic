@@ -78,6 +78,7 @@ namespace MembraneOscillation
   unsigned int fe_degree = 2;
   unsigned int n_mesh_refinement_steps = 5;
 
+  unsigned int n_threads = 0;
 
   void
   declare_parameters (ParameterHandler &prm)
@@ -124,6 +125,16 @@ namespace MembraneOscillation
     prm.declare_entry ("Finite element polynomial degree", "2",
                        Patterns::Integer(1,5),
                        "The polynomial degree to be used for the finite element.");
+
+    prm.declare_entry ("Number of threads", "0",
+                       Patterns::Integer(0),
+                       "The number of threads this program may use at the same time. "
+                       "Threads are used to compute the frequency response for "
+                       "different frequencies at the same time since these are "
+                       "independent computations. A value of zero means that the "
+                       "program may use as many threads as it pleases, whereas a "
+                       "positive number limits how many threads (and consequently "
+                       "CPU cores) the program will use.");
   }
 
 
@@ -169,6 +180,8 @@ namespace MembraneOscillation
            ExcMessage("The C0IP formulation for the biharmonic problem "
                       "only works if one uses elements of polynomial "
                       "degree at least 2."));
+
+    n_threads = prm.get_integer ("Number of threads");
   }
   
 
@@ -1077,25 +1090,98 @@ int main()
         read_parameters(prm);
       }
       
-      // Then sweep over the frequencies.
-      std::vector<std::future<void>> tasks;
+      // Then determine the frequencies for which we want to do
+      // computations. Put these into a buffer.
       const double delta_omega = (MaterialParameters::max_omega
                                   -MaterialParameters::min_omega)
                                  / MaterialParameters::n_frequencies;
+      std::vector<double> frequencies;
       for (double omega = MaterialParameters::min_omega;
            omega <= MaterialParameters::max_omega;
            omega += delta_omega)
-        tasks.emplace_back (std::async (std::launch::async,
-                                        [=]() { solve_one_frequency (omega); }));
+        frequencies.push_back (omega);
 
+
+      // Finally start the computations. If we are allowed to use as
+      // many threads as we want, or if we are allowed to use as many
+      // or more threads as there are frequencies, then we can just
+      // schedule all of them:
+      if ((n_threads == 0)
+          ||
+          (n_threads >= frequencies.size()))
+        {
+          std::vector<std::future<void>> tasks;
+          for (const double omega : frequencies)
+            tasks.emplace_back (std::async (std::launch::async,
+                                            [=]() { solve_one_frequency (omega); }));
       
-      std::cout << "Number of frequencies scheduled: "
-                << tasks.size() << std::endl;
+          std::cout << "Number of frequencies scheduled: "
+                    << tasks.size() << std::endl;
 
-      // Now wait for it all:
-      for (const auto &task : tasks)
-        task.wait();
+          // Now wait for it all:
+          for (const auto &task : tasks)
+            task.wait();
+        }
+      else
+        // We are limited on the number of threads. The way we deal
+        // with this is that we start a few tasks right away (as many
+        // as we are allowed to) and keep a list of frequencies that
+        // still need to be finished. Then, each task that finishes
+        // creates a continuation just before it terminates.
+        {
+          std::vector<std::future<void>> tasks;
+          std::vector<double> leftover_frequencies (frequencies.begin()+n_threads,
+                                                    frequencies.end());
+          std::mutex mutex;
 
+          // Here is the task we have to do for each of the initial
+          // frequencies: Do one frequency. Then see whether there are
+          // any frequencies left and if so, queue up a task for the
+          // next available frequency. Accessing both
+          // `leftover_frequencies` and `tasks` obviously has to
+          // happen under a lock.
+          //
+          // Note how this lambda function calls itself.
+          std::function<void (double)> do_one_frequency
+            = [&] (const double omega) {
+                solve_one_frequency (omega);
+
+                double next_omega = -1e20;
+                {
+                  std::lock_guard<std::mutex> lock(mutex);
+                  if (leftover_frequencies.size() == 0)
+                    return;
+                
+                  next_omega = leftover_frequencies.front();
+                  leftover_frequencies.erase (leftover_frequencies.begin());
+                }
+
+                // The lock has been released, we can just do the next
+                // frequency, simply re-using the current thread. (The
+                // load balancing will happen because each thread that
+                // was initially started keeps working until there is
+                // no more work to be found on the
+                // `leftover_frequency` stack. In other words, we
+                // don't up-front schedule which task will do what,
+                // but in essence implement a work-stealing strategy.)
+                do_one_frequency (next_omega);
+          };
+
+          // Now start the initial tasks.
+          std::cout << "Using processing with limited number of "
+                    << n_threads << " threads." << std::endl;
+          for (unsigned int i=0; i<n_threads; ++i)
+            {
+              const double omega = frequencies[i];
+              tasks.emplace_back (std::async (std::launch::async,
+                                              [=] () { do_one_frequency (omega); } ));
+            }
+
+          // Now wait for it all:
+          for (const auto &task : tasks)
+            task.wait();
+        }
+      
       std::cout << "Number of frequencies computed: "
                 << results.size() << std::endl;      
 

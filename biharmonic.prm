@@ -12,3 +12,5 @@ set Number of frequency steps = 100
 
 set Number of mesh refinement steps  = 5
 set Finite element polynomial degree = 2
+
+set Number of threads         = 0
