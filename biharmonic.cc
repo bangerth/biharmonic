@@ -293,6 +293,7 @@ namespace MembraneOscillation
     FE_Q<dim>                     fe;
     DoFHandler<dim>               dof_handler;
     AffineConstraints<ScalarType> constraints;
+    static std::mutex             constraints_lock;
 
     SparsityPattern               sparsity_pattern;
     SparseMatrix<ScalarType>      system_matrix;
@@ -303,6 +304,9 @@ namespace MembraneOscillation
     OutputData                    output_data;
   };
 
+
+  template <int dim>
+  std::mutex BiharmonicProblem<dim>::constraints_lock;
 
 
   template <int dim>
@@ -344,10 +348,13 @@ namespace MembraneOscillation
 
 
     DynamicSparsityPattern c_sparsity(dof_handler.n_dofs());
-    DoFTools::make_flux_sparsity_pattern(dof_handler,
-                                         c_sparsity,
-                                         constraints,
-                                         true);
+    {
+      std::lock_guard<std::mutex> lock (constraints_lock);
+      DoFTools::make_flux_sparsity_pattern(dof_handler,
+                                           c_sparsity,
+                                           constraints,
+                                           true);
+    }
     sparsity_pattern.copy_from(c_sparsity);
     system_matrix.reinit(sparsity_pattern);
 
@@ -785,6 +792,7 @@ namespace MembraneOscillation
     // and that the `face_worker` and `boundary_worker` have added
     // to the `copy_data.face_data` array.
     auto copier = [&](const CopyData &copy_data) {
+      std::lock_guard<std::mutex> lock (constraints_lock);
       constraints.distribute_local_to_global(copy_data.cell_matrix,
                                              copy_data.cell_rhs,
                                              copy_data.local_dof_indices,
