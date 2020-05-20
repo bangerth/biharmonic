@@ -1019,15 +1019,14 @@ namespace MembraneOscillation
     // final form, not partly written.
     std::lock_guard<std::mutex> guard (results_mutex);
     std::ostringstream buffer;
-    buffer
-      << "# Columns are as follows:\n"
-      << "# 1: Frequency [Hz]\n"
-      << "# 2: Real part of the volume displacement divided by the amplitude of pressure [m^3/Pa]\n"
-      << "# 3: Imaginary part of the same\n"
-      << "# 4: Real part of the impedance [Pa.s/m^3]\n"
-      << "# 5: Imaginary part of the same\n"
-      << "# 6: Absolute value of maximal displacement divided by amplitude of pressure [m/Pa]\n"
-      << "# 7: File name for graphical output of the displacement visualization.\n";
+    buffer << "# Columns are as follows:\n"
+           << "# 1: Frequency [Hz]\n"
+           << "# 2: Real part of the volume displacement divided by the amplitude of pressure [m^3/Pa]\n"
+           << "# 3: Imaginary part of the same\n"
+           << "# 4: Real part of the impedance [Pa.s/m^3]\n"
+           << "# 5: Imaginary part of the same\n"
+           << "# 6: Absolute value of maximal displacement divided by amplitude of pressure [m/Pa]\n"
+           << "# 7: File name for graphical output of the displacement visualization.\n";
     for (auto result : results)
       {
         const auto omega = result.first;
@@ -1035,13 +1034,13 @@ namespace MembraneOscillation
                                /omega/std::complex<double>(0.,1.);
           
         buffer << omega/2/numbers::PI << ' '
-                           << std::real(result.second.normalized_amplitude_integral) << ' '
-                           << std::imag(result.second.normalized_amplitude_integral) << ' '
-                           << std::real(impedance) << ' '
-                           << std::imag(impedance) << ' '
-                           << result.second.normalized_maximum_amplitude << ' '
-                           << '"' << result.second.visualization_file_name << '"'
-                           << std::endl;
+               << std::real(result.second.normalized_amplitude_integral) << ' '
+               << std::imag(result.second.normalized_amplitude_integral) << ' '
+               << std::real(impedance) << ' '
+               << std::imag(impedance) << ' '
+               << result.second.normalized_maximum_amplitude << ' '
+               << '"' << result.second.visualization_file_name << '"'
+               << std::endl;
       }
 
     std::ofstream frequency_response ("frequency_response.txt");
