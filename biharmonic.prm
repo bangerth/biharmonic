@@ -1,4 +1,4 @@
-set Domain edge length        = 0.015
+set Mesh file name            = ../biharmonic/square_mesh.vtk
 set Thickness                 = 0.0001
 set Density                   = 100
 set Loss angle                = 2
@@ -8,7 +8,7 @@ set Tension                   = 30
 
 set Minimal frequency         = 100
 set Maximal frequency         = 10000
-set Number of frequency steps = 100
+set Number of frequency steps = 10
 
 set Number of mesh refinement steps  = 5
 set Finite element polynomial degree = 2

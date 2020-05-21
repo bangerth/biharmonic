@@ -20,7 +20,7 @@
 #include <deal.II/lac/sparse_direct.h>
 
 #include <deal.II/grid/tria.h>
-#include <deal.II/grid/grid_generator.h>
+#include <deal.II/grid/grid_in.h>
 #include <deal.II/grid/tria_accessor.h>
 #include <deal.II/grid/tria_iterator.h>
 
@@ -64,7 +64,6 @@ namespace MembraneOscillation
   // The following namespace defines material parameters. We use SI units.
   namespace MaterialParameters
   {
-    double domain_extent;
     double density;
     double thickness;
     ScalarType tension;
@@ -75,6 +74,8 @@ namespace MembraneOscillation
     unsigned int n_frequencies = 100;
   }
 
+  std::string mesh_file_name;
+  
   unsigned int fe_degree = 2;
   unsigned int n_mesh_refinement_steps = 5;
 
@@ -83,9 +84,9 @@ namespace MembraneOscillation
   void
   declare_parameters (ParameterHandler &prm)
   {
-    prm.declare_entry ("Domain edge length", "0.015",
-                       Patterns::Double(0),
-                       "The edge length of the square domain. Units: [m].");
+    prm.declare_entry ("Mesh file name", "./square_mesh.vtk",
+                       Patterns::FileName(),
+                       "The name of the file from which to read the mesh.");
     prm.declare_entry ("Thickness", "0.0001",
                        Patterns::Double(0),
                        "Thickness of the membrane. Units: [m].");
@@ -151,13 +152,14 @@ namespace MembraneOscillation
     // First get the independent parameters from the input file:
     double loss_angle, E, poissons_ratio;
     
-    domain_extent  = prm.get_double ("Domain edge length");
     thickness      = prm.get_double ("Thickness");
     density        = prm.get_double ("Density");
     loss_angle     = prm.get_double ("Loss angle");
     E              = prm.get_double ("Young's modulus");
     poissons_ratio = prm.get_double ("Poisson's ratio");
     tension        = prm.get_double ("Tension");
+
+    mesh_file_name = prm.get ("Mesh file name");
 
     min_omega = prm.get_double ("Minimal frequency") * 2 * numbers::PI;
     max_omega = prm.get_double ("Maximal frequency") * 2 * numbers::PI;
@@ -348,7 +350,10 @@ namespace MembraneOscillation
   template <int dim>
   void BiharmonicProblem<dim>::make_grid()
   {
-    GridGenerator::hyper_cube(triangulation, 0, MaterialParameters::domain_extent);
+    GridIn<dim> grid_in;
+    grid_in.attach_triangulation (triangulation);
+    std::ifstream input (mesh_file_name);
+    grid_in.read_vtk (input);
     triangulation.refine_global(MembraneOscillation::n_mesh_refinement_steps);
   }
 

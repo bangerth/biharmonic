@@ -43,7 +43,8 @@ article:
 The program reads the parameter values that determine what is to be computed from a
 file called `biharmonic.prm`. This file looks as follows:
 ```
-set Domain edge length        = 0.015
+set Mesh file name            = ./square_mesh.vtk
+
 set Thickness                 = 0.0001
 set Density                   = 100
 set Loss angle                = 2
@@ -60,10 +61,18 @@ set Finite element polynomial degree = 2
 
 set Number of threads         = 0
 ```
+The first of these parameters, obviously, corresponds to the name of a
+file that contains the mesh (in [VTK
+format](https://vtk.org/wp-content/uploads/2015/04/file-formats.pdf))
+that describes the domain on which to solve the PDE (i.e., the shape
+of the membrane).
+
+The second and third blocks describe the mechanical properties of the
+membrane and acoustic range of the problems to be solved.
 All parameters are given in SI units. `Loss angle` is dimensionless and interpreted
 in degrees. The minimal and maximal frequencies are intrepreted in Hz.
 
-The third block of parameters shown above describes properties of the
+The fourth block of parameters shown above describes properties of the
 discretization, i.e., of _how_ the problem (formulated as a PDE)
 should be solved rather than what the problem actually is. In
 particular, the parameters list the number of mesh refinement steps
