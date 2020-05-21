@@ -48,6 +48,7 @@
 
 #include <fstream>
 #include <future>
+#include <thread>
 #include <iostream>
 #include <sstream>
 #include <cmath>
@@ -1174,7 +1175,6 @@ int main()
         // still need to be finished. Then, each task that finishes
         // creates a continuation just before it terminates.
         {
-          std::vector<std::future<void>> tasks;
           std::vector<double> leftover_frequencies (frequencies.begin()+n_threads,
                                                     frequencies.end());
           std::mutex mutex;
@@ -1215,16 +1215,16 @@ int main()
           // Now start the initial tasks.
           std::cout << "Using processing with limited number of "
                     << n_threads << " threads." << std::endl;
+          std::vector<std::thread> threads;
           for (unsigned int i=0; i<n_threads; ++i)
             {
               const double omega = frequencies[i];
-              tasks.emplace_back (std::async (std::launch::async,
-                                              [=] () { do_one_frequency (omega); } ));
+              threads.emplace_back (std::thread ([=] () { do_one_frequency (omega); } ));
             }
 
           // Now wait for it all:
-          for (const auto &task : tasks)
-            task.wait();
+          for (auto &thread : threads)
+            thread.join();
         }
       
       std::cout << "Number of frequencies computed: "
