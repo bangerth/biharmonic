@@ -21,6 +21,7 @@
 
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/grid_in.h>
+#include <deal.II/grid/grid_tools.h>
 #include <deal.II/grid/tria_accessor.h>
 #include <deal.II/grid/tria_iterator.h>
 
@@ -77,7 +78,7 @@ namespace MembraneOscillation
   std::string mesh_file_name;
   
   unsigned int fe_degree = 2;
-  unsigned int n_mesh_refinement_steps = 5;
+  int n_mesh_refinement_steps = 5;
 
   unsigned int n_threads = 0;
 
@@ -120,9 +121,11 @@ namespace MembraneOscillation
                        "range is to be subdivided. Units: none.");
 
     prm.declare_entry ("Number of mesh refinement steps", "5",
-                       Patterns::Integer(1,10),
+                       Patterns::Integer(-100,10),
                        "The number of global mesh refinement steps applied "
-                       "to the coarse mesh.");
+                       "to the coarse mesh if positive or zero. If negative, "
+                       "then it denotes the number of mesh points per wave length "
+                       "as described in readme.md.");
     prm.declare_entry ("Finite element polynomial degree", "2",
                        Patterns::Integer(1,5),
                        "The polynomial degree to be used for the finite element.");
@@ -354,7 +357,43 @@ namespace MembraneOscillation
     grid_in.attach_triangulation (triangulation);
     std::ifstream input (mesh_file_name);
     grid_in.read_vtk (input);
-    triangulation.refine_global(MembraneOscillation::n_mesh_refinement_steps);
+
+    // Now implement the heuristic for mesh refinement described in
+    // readme.md: If positive, just do a number of global refinement
+    // steps. If negative, interpret it as the number of mesh points
+    // per wave length.
+    if (n_mesh_refinement_steps >= 0)
+      triangulation.refine_global(n_mesh_refinement_steps);
+    else
+      {
+        const int N = -n_mesh_refinement_steps;
+        
+        const double lambda_1 = 2 * numbers::PI *
+                                std::sqrt (std::real(MaterialParameters::tension)
+                                           /
+                                           (MaterialParameters::density
+                                            *
+                                            MaterialParameters::thickness))
+                                /
+                                omega;
+        const double lambda_2 = 2 * numbers::PI *
+                                std::pow (std::real(MaterialParameters::stiffness_D)
+                                           /
+                                           (MaterialParameters::density
+                                            *
+                                            MaterialParameters::thickness),
+                                          0.25)
+                                /
+                                std::sqrt(omega);
+        const double lambda  = std::max (lambda_1, lambda_2);
+
+        const double diameter = GridTools::diameter(triangulation);
+        const double delta_x = std::min(lambda, diameter) / N * fe_degree;
+
+        while (GridTools::maximal_cell_diameter(triangulation)
+               >= delta_x)
+          triangulation.refine_global();
+      }
   }
 
 

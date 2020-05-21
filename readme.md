@@ -14,6 +14,14 @@ equation on a square domain, but it has also been tested on circles and will, wi
 minor modifications to less than a dozen lines of code, be able to solve the
 equation above on any mesh read from a file.
 
+For a thin plate, the bending constant _D_ is related to other
+parameters via
+```
+  D = (E h^3) / (12 (1-nu^2)
+```
+where _E_ is Young's modulus, _h_ the thickness of the plate, and _nu_
+is Poisson's ratio.
+
 As boundary conditions, the program assumes that both the vertical deflection is
 zero at the boundary, and that the plate is clamped there with a zero slope. In
 other words, at the boundary the program assumes that
@@ -79,6 +87,56 @@ particular, the parameters list the number of mesh refinement steps
 (each refinement step replaces each cell of the mesh by its four
 children) as well as the polynomial degree of the finite element
 approximation.
+
+The number of mesh refinement steps is interpreted in the following
+way: If it is positive or zero, then the mesh on which the solution is
+computed is simply the mesh taken from the file listed in the first
+parameter, this many times refined by replacing each cell by its four
+children in each refinement step. In particular, this leads to using
+the same mesh for all frequencies.
+
+On the other hand, if the number of mesh refinement steps is negative,
+then the mesh is adapted using the following algorithm. For given
+thickness _h_, density _rho_, Young's modulus _E_, and Tension _T_
+parameters, we can compute the wave speed in the medium. This can be
+done by setting _z(x,y)=sin(kx-wt)_ in the equation above and _P=0_,
+and then computing which value for _w_ satisfies the equation for a
+given _w_. This yields a "dispersion relationship" of the form
+```
+  -rho h w^2 + D k^4 + T k^2 = 0
+```
+or equivalently
+```
+  w = sqrt{ (D k^4 + T k^2) / (rho h) }.
+```
+This is not useful, because it does not provide us with a wave speed
+_c=w/k_ that is constant, but instead one that depends on the
+frequency of the wave. On the other hand, we can compute wave speeds
+for the extreme cases where either _D=0_ or _T=0_, i.e., for a pure
+membrane or pure plate. We can then take the minimum of the two as an
+indication of how fast a wave would traverse the medium:
+```
+  c = max{ sqrt{ T / (rho h) }, sqrt{ D k^2 / (rho h) } }
+    = max{ sqrt{ T / (rho h) }, sqrt{ D (w/sqrt{D / rho h}) / (rho h) } }
+    = max{ sqrt{ T / (rho h) }, sqrt{ sqrt{D / (rho h)} w } }.
+```
+With this formula, we can compute the wavelength of oscillations for a
+given frequency _w_ via
+```
+  lambda = c/f
+         = c/(w/(2pi))
+         = 2 pi max{ sqrt{ T / (rho h) } / w, {D / (rho h)}^(1/4) / sqrt{ w } }.
+```
+If `lambda` is larger than the diameter of the domain, then we replace
+it by the diameter of the domain since that is the largest wavelength
+at which the solution can vary.
+We can then determine a frequency-adapted mesh size in the following
+way: We want that there are at least _N_ grid points per wave
+length. Since there are as many grid points per cell as the polynomial
+degree _p_, this equations to requiring that the mesh size _Delta x_
+satisfies _Delta x / p <= lambda/N_
+or equivalently: _Delta x <= lambda/N * p_. The `Mesh refinement steps`
+parameter is then interpreted as _N_ if it is negative.
 
 The last parameter, `Number of threads`, indicates how many threads
 the program may use at any given time. Threads are used to compute
