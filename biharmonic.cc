@@ -1138,7 +1138,8 @@ int main()
       // computations. Put these into a buffer.
       const double delta_omega = (MaterialParameters::max_omega
                                   -MaterialParameters::min_omega)
-                                 / MaterialParameters::n_frequencies;
+                                 / MaterialParameters::n_frequencies
+                                 * (1.+1e-12);
       std::vector<double> frequencies;
       for (double omega = MaterialParameters::min_omega;
            omega <= MaterialParameters::max_omega;
