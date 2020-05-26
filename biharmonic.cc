@@ -34,6 +34,7 @@
 #include <deal.II/dofs/dof_tools.h>
 
 #include <deal.II/numerics/vector_tools.h>
+#include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/numerics/data_out.h>
 
 // The two most interesting header files will be these two:
@@ -312,16 +313,7 @@ namespace MembraneOscillation
     FE_Q<dim>                     fe;
     DoFHandler<dim>               dof_handler;
 
-    // The object that deals with constraints on the solution vector,
-    // e.g., from boundary values or hanging nodes. The deal.II
-    // library has a bug in that this class cannot be used with
-    // DEAL_II_WITH_THREADS=OFF if one explicitly uses std::thread or
-    // std::async, see #10285. Specifically, this is because in that
-    // case, it keeps a global variable that different threads will
-    // then compete for. To work around this, we have to lock all uses
-    // of the AffineConstraints class with a mutex.
-    AffineConstraints<ScalarType> constraints;
-    static std::mutex             constraints_lock;
+    std::map<types::global_dof_index,ScalarType> boundary_values;
 
     SparsityPattern               sparsity_pattern;
     SparseMatrix<ScalarType>      system_matrix;
@@ -332,9 +324,6 @@ namespace MembraneOscillation
     OutputData                    output_data;
   };
 
-
-  template <int dim>
-  std::mutex BiharmonicProblem<dim>::constraints_lock;
 
 
   template <int dim>
@@ -404,24 +393,36 @@ namespace MembraneOscillation
   {
     dof_handler.distribute_dofs(fe);
 
-    constraints.clear();
-    DoFTools::make_hanging_node_constraints(dof_handler, constraints);
-
+    boundary_values.clear();
     VectorTools::interpolate_boundary_values(dof_handler,
                                              0,
                                              ZeroFunction<dim,ScalarType>(),
-                                             constraints);
-    constraints.close();
-
+                                             boundary_values);
 
     DynamicSparsityPattern c_sparsity(dof_handler.n_dofs());
     {
-      std::lock_guard<std::mutex> lock (constraints_lock);
-      DoFTools::make_flux_sparsity_pattern(dof_handler,
-                                           c_sparsity,
-                                           constraints,
-                                           true);
+      std::vector<types::global_dof_index> local_dof_indices (fe.dofs_per_cell);
+      std::vector<types::global_dof_index> neighbor_dof_indices (fe.dofs_per_cell);
+      for (const auto &cell : dof_handler.active_cell_iterators())
+        {
+          cell->get_dof_indices (local_dof_indices);
+          for (auto i : local_dof_indices)
+            for (auto j : local_dof_indices)
+              c_sparsity.add (i,j);
+
+          for (unsigned int f=0; f<GeometryInfo<dim>::faces_per_cell; ++f)
+            if (cell->at_boundary(f) == false)
+              {
+                cell->neighbor(f)->get_dof_indices (neighbor_dof_indices);
+                for (auto i : local_dof_indices)
+                  for (auto j : neighbor_dof_indices)
+                    c_sparsity.add (i,j);
+              }
+        }
+      c_sparsity.compress();
     }
+    
+        
     sparsity_pattern.copy_from(c_sparsity);
     system_matrix.reinit(sparsity_pattern);
 
@@ -859,18 +860,22 @@ namespace MembraneOscillation
     // and that the `face_worker` and `boundary_worker` have added
     // to the `copy_data.face_data` array.
     auto copier = [&](const CopyData &copy_data) {
-      std::lock_guard<std::mutex> lock (constraints_lock);
-      constraints.distribute_local_to_global(copy_data.cell_matrix,
-                                             copy_data.cell_rhs,
-                                             copy_data.local_dof_indices,
-                                             system_matrix,
-                                             system_rhs);
+      for (unsigned int i=0; i<copy_data.cell_matrix.m(); ++i)
+        for (unsigned int j=0; j<copy_data.cell_matrix.m(); ++j)
+          system_matrix.add(copy_data.local_dof_indices[i],
+                            copy_data.local_dof_indices[j],
+                            copy_data.cell_matrix(i,j));
+      for (unsigned int i=0; i<copy_data.cell_rhs.size(); ++i)
+        system_rhs(copy_data.local_dof_indices[i])
+          += copy_data.cell_rhs[i];
 
       for (auto &cdf : copy_data.face_data)
         {
-          constraints.distribute_local_to_global(cdf.cell_matrix,
-                                                 cdf.joint_dof_indices,
-                                                 system_matrix);
+          for (unsigned int i=0; i<cdf.cell_matrix.m(); ++i)
+            for (unsigned int j=0; j<cdf.cell_matrix.m(); ++j)
+              system_matrix.add(cdf.joint_dof_indices[i],
+                                cdf.joint_dof_indices[j],
+                                cdf.cell_matrix(i,j));
         }
     };
 
@@ -904,6 +909,11 @@ namespace MembraneOscillation
                             MeshWorker::assemble_own_interior_faces_once,
                           boundary_worker,
                           face_worker);
+
+    MatrixTools::apply_boundary_values (boundary_values,
+                                        system_matrix,
+                                        solution,
+                                        system_rhs);
   }
 
 
@@ -920,7 +930,6 @@ namespace MembraneOscillation
     
     SparseDirectUMFPACK direct_solver;
     direct_solver.solve(system_matrix, solution);
-    constraints.distribute(solution);
   }
 
 
