@@ -72,9 +72,7 @@ namespace MembraneOscillation
     ScalarType tension;
     ScalarType stiffness_D;
 
-    double min_omega = 100*2*numbers::PI;
-    double max_omega = 10000*2*numbers::PI;
-    unsigned int n_frequencies = 100;
+    std::vector<double> frequencies;
   }
 
   std::string mesh_file_name;
@@ -111,6 +109,12 @@ namespace MembraneOscillation
                        "The tension coefficient T that describes the membrane part of "
                        "the material behavior. Units: [N/m].");
 
+    // prm.declare_entry ("Frequencies", "linear_spacing(100,10000,100)",
+    //                    Patterns::Anything(),
+    //                    "A description of the frequencies to compute. See "
+    //                    "the readme.md file for a description of the format "
+    //                    "for this entry.");
+    
     prm.declare_entry ("Minimal frequency", "100",
                        Patterns::Double(0),
                        "The minimal frequency to consider. Units: [Hz].");    
@@ -166,10 +170,19 @@ namespace MembraneOscillation
 
     mesh_file_name = prm.get ("Mesh file name");
 
-    min_omega = prm.get_double ("Minimal frequency") * 2 * numbers::PI;
-    max_omega = prm.get_double ("Maximal frequency") * 2 * numbers::PI;
-    n_frequencies = prm.get_integer ("Number of frequency steps");
     
+    const double min_omega = prm.get_double ("Minimal frequency") * 2 * numbers::PI;
+    const double max_omega = prm.get_double ("Maximal frequency") * 2 * numbers::PI;
+    const unsigned int n_frequencies = prm.get_integer ("Number of frequency steps");
+
+    const double delta_omega = (max_omega -min_omega)
+                               / n_frequencies
+                               * (1.+1e-12);
+    for (double omega = min_omega;
+         omega <= max_omega;
+         omega += delta_omega)
+      MaterialParameters::frequencies.push_back (omega);
+
 
     // Then compute the dependent ones. Note that we interpret the angle in degrees.
     const ScalarType youngs_modulus
@@ -1105,7 +1118,7 @@ namespace MembraneOscillation
     std::ostringstream buffer;
     buffer << "# " << results.size()
            << "/"
-           << MaterialParameters::n_frequencies
+           << MaterialParameters::frequencies.size()
            << " frequencies computed"
            << "\n\n";
 
@@ -1164,29 +1177,16 @@ int main()
         read_parameters(prm);
       }
       
-      // Then determine the frequencies for which we want to do
-      // computations. Put these into a buffer.
-      const double delta_omega = (MaterialParameters::max_omega
-                                  -MaterialParameters::min_omega)
-                                 / MaterialParameters::n_frequencies
-                                 * (1.+1e-12);
-      std::vector<double> frequencies;
-      for (double omega = MaterialParameters::min_omega;
-           omega <= MaterialParameters::max_omega;
-           omega += delta_omega)
-        frequencies.push_back (omega);
-
-
       // Finally start the computations. If we are allowed to use as
       // many threads as we want, or if we are allowed to use as many
       // or more threads as there are frequencies, then we can just
       // schedule all of them:
       if ((n_threads == 0)
           ||
-          (n_threads >= frequencies.size()))
+          (n_threads >= MaterialParameters::frequencies.size()))
         {
           std::vector<std::future<void>> tasks;
-          for (const double omega : frequencies)
+          for (const double omega : MaterialParameters::frequencies)
             tasks.emplace_back (std::async (std::launch::async,
                                             [=]() { solve_one_frequency (omega); }));
       
@@ -1204,8 +1204,9 @@ int main()
         // still need to be finished. Then, each task that finishes
         // creates a continuation just before it terminates.
         {
-          std::vector<double> leftover_frequencies (frequencies.begin()+n_threads,
-                                                    frequencies.end());
+          std::vector<double>
+            leftover_frequencies (MaterialParameters::frequencies.begin()+n_threads,
+                                  MaterialParameters::frequencies.end());
           std::mutex mutex;
 
           // Here is the task we have to do for each of the initial
@@ -1247,7 +1248,7 @@ int main()
           std::vector<std::thread> threads;
           for (unsigned int i=0; i<n_threads; ++i)
             {
-              const double omega = frequencies[i];
+              const double omega = MaterialParameters::frequencies[i];
               threads.emplace_back (std::thread ([=] () { do_one_frequency (omega); } ));
             }
 
