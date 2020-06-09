@@ -1162,15 +1162,9 @@ namespace MembraneOscillation
 
     solve();
 
-    // Run the generation of graphical output in the background...
-    Threads::Task<> output ([this]() { output_results(); });
-
-    // ...while also doing postprocessing.
+    // Do postprocessing:
+    output_results();
     postprocess();
-
-    // Then wait for the graphical output task
-    output.join();
-    
 
     // Finally, put the result into the output variable that we can
     // read from main(). Make sure that access to the variable is
