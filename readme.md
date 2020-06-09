@@ -60,9 +60,7 @@ set Young's modulus           = 200e6
 set Poisson's ratio           = 0.3
 set Tension                   = 30
 
-set Minimal frequency         = 100
-set Maximal frequency         = 10000
-set Number of frequency steps = 100
+set Frequencies               = linear_spacing(100,1e4,100)
 
 set Number of mesh refinement steps  = 5
 set Finite element polynomial degree = 2
@@ -75,10 +73,25 @@ format](https://vtk.org/wp-content/uploads/2015/04/file-formats.pdf))
 that describes the domain on which to solve the PDE (i.e., the shape
 of the membrane).
 
-The second and third blocks describe the mechanical properties of the
-membrane and acoustic range of the problems to be solved.
-All parameters are given in SI units. `Loss angle` is dimensionless and interpreted
-in degrees. The minimal and maximal frequencies are intrepreted in Hz.
+The second and block describes the mechanical properties of the
+membrane. All parameters are given in SI units. `Loss angle` is
+dimensionless and interpreted in degrees. The minimal and maximal
+frequencies are intrepreted in Hz.
+
+The third block describes the frequencies that should be
+computed. There are three possibilities for this parameter:
+
+  - Specify `linear_spacing(f1,f2,nsteps)`: This computes `nsteps`
+    frequencies between `f1` and `f2` (given in Hz) with equal spacing
+    between frequencies.
+  - Specify `exp_spacing(f1,f2,nsteps)`: This computes `nsteps`
+    frequencies between `f1` and `f2` (given in Hz) with equal spacing
+    between the logarithms of frequencies. In other words, the gaps
+    between successive frequencies grow exponentially: On a log plot,
+    the frequencies so computes are equall spaced.
+  - Specify `list(f1,f2,f3,...)`: Here, the program computes all of
+    the frequencies explicitly listed between parentheses. The list
+    may have any length, as long as it contains at least one element.
 
 The fourth block of parameters shown above describes properties of the
 discretization, i.e., of _how_ the problem (formulated as a PDE)

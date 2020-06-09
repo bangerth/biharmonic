@@ -109,22 +109,11 @@ namespace MembraneOscillation
                        "The tension coefficient T that describes the membrane part of "
                        "the material behavior. Units: [N/m].");
 
-    // prm.declare_entry ("Frequencies", "linear_spacing(100,10000,100)",
-    //                    Patterns::Anything(),
-    //                    "A description of the frequencies to compute. See "
-    //                    "the readme.md file for a description of the format "
-    //                    "for this entry.");
-    
-    prm.declare_entry ("Minimal frequency", "100",
-                       Patterns::Double(0),
-                       "The minimal frequency to consider. Units: [Hz].");    
-    prm.declare_entry ("Maximal frequency", "10000",
-                       Patterns::Double(0),
-                       "The maximal frequency to consider. Units: [Hz].");
-    prm.declare_entry ("Number of frequency steps", "100",
-                       Patterns::Integer(1,10000),
-                       "The number of frequency steps into which the frequency "
-                       "range is to be subdivided. Units: none.");
+    prm.declare_entry ("Frequencies", "linear_spacing(100,10000,100)",
+                       Patterns::Anything(),
+                       "A description of the frequencies to compute. See "
+                       "the readme.md file for a description of the format "
+                       "for this entry.");
 
     prm.declare_entry ("Number of mesh refinement steps", "5",
                        Patterns::Integer(-100,10),
@@ -170,19 +159,127 @@ namespace MembraneOscillation
 
     mesh_file_name = prm.get ("Mesh file name");
 
-    
-    const double min_omega = prm.get_double ("Minimal frequency") * 2 * numbers::PI;
-    const double max_omega = prm.get_double ("Maximal frequency") * 2 * numbers::PI;
-    const unsigned int n_frequencies = prm.get_integer ("Number of frequency steps");
+    // Read and parse the entry that determines which frequencies to compute.
+    // Recall that the format is one of the following:
+    // - linear_spacing(min,max,n_steps)
+    // - exp_spacing(min,max,n_steps)
+    // - list(...)
+    const std::string frequency_descriptor = prm.get ("Frequencies");
+    if (frequency_descriptor.find ("linear_spacing") == 0)
+      {
+        // Get the rest of the string, and eat any space at the start and end
+        const std::string parenthesized_expr
+          = Utilities::trim (frequency_descriptor.substr
+                             (std::string("linear_spacing").size(),
+                              std::string::npos));
+        AssertThrow (parenthesized_expr.size() >= 2
+                     &&
+                     parenthesized_expr.front() == '('
+                     &&
+                     parenthesized_expr.back() == ')',
+                     ExcMessage ("Wrong format for 'linear_spacing'."));
 
-    const double delta_omega = (max_omega -min_omega)
-                               / n_frequencies
-                               * (1.+1e-12);
-    for (double omega = min_omega;
-         omega <= max_omega;
-         omega += delta_omega)
-      MaterialParameters::frequencies.push_back (omega);
+        // Then get the interior part, again trim spaces, and split at
+        // commas
+        const std::vector<std::string> min_max_steps
+          = Utilities::split_string_list
+          (Utilities::trim (parenthesized_expr.substr
+                            (1,
+                             parenthesized_expr.size() - 2)),
+           ',');
+        AssertThrow (min_max_steps.size() == 3,
+                     ExcMessage ("Wrong format for 'linear_spacing'."));
+                            
+        const double min_omega = Utilities::string_to_double(min_max_steps[0])
+                                 * 2 * numbers::PI;
+        const double max_omega = Utilities::string_to_double(min_max_steps[1])
+                                 * 2 * numbers::PI;
+        const unsigned int n_frequencies = Utilities::string_to_int(min_max_steps[2]);
 
+        const double delta_omega = (max_omega - min_omega)
+                                   / (n_frequencies-1)
+                                   * (1.-1e-12);
+        for (double omega = min_omega;
+             omega <= max_omega;
+             omega += delta_omega)
+          MaterialParameters::frequencies.push_back (omega);
+      }
+    else if (frequency_descriptor.find ("exp_spacing") == 0)
+      {
+        // Get the rest of the string, and eat any space at the start and end
+        const std::string parenthesized_expr
+          = Utilities::trim (frequency_descriptor.substr
+                             (std::string("exp_spacing").size(),
+                              std::string::npos));
+        AssertThrow (parenthesized_expr.size() >= 2
+                     &&
+                     parenthesized_expr.front() == '('
+                     &&
+                     parenthesized_expr.back() == ')',
+                     ExcMessage ("Wrong format for 'exp_spacing'."));
+
+        // Then get the interior part, again trim spaces, and split at
+        // commas
+        const std::vector<std::string> min_max_steps
+          = Utilities::split_string_list
+          (Utilities::trim (parenthesized_expr.substr
+                            (1,
+                             parenthesized_expr.size() - 2)),
+           ',');
+        AssertThrow (min_max_steps.size() == 3,
+                     ExcMessage ("Wrong format for 'exp_spacing'."));
+                            
+        const double log_min_omega = std::log(Utilities::string_to_double(min_max_steps[0])
+                                              * 2 * numbers::PI);
+        const double log_max_omega = std::log(Utilities::string_to_double(min_max_steps[1])
+                                              * 2 * numbers::PI);
+        const unsigned int n_frequencies = Utilities::string_to_int(min_max_steps[2]);
+
+        const double delta_log_omega = (log_max_omega - log_min_omega)
+                                       / (n_frequencies - 1)
+                                       * (1.-1e-12);
+        for (double log_omega = log_min_omega;
+             log_omega <= log_max_omega;
+             log_omega += delta_log_omega)
+          MaterialParameters::frequencies.push_back (std::exp(log_omega));
+      }
+    else if (frequency_descriptor.find ("list") == 0)
+      {
+        // Get the rest of the string, and eat any space at the start and end
+        const std::string parenthesized_expr
+          = Utilities::trim (frequency_descriptor.substr
+                             (std::string("list").size(),
+                              std::string::npos));
+        AssertThrow (parenthesized_expr.size() >= 2
+                     &&
+                     parenthesized_expr.front() == '('
+                     &&
+                     parenthesized_expr.back() == ')',
+                     ExcMessage ("Wrong format for 'list' frequency spacing."));
+
+        // Then get the interior part, again trim spaces, and split at
+        // commas
+        MaterialParameters::frequencies =
+          Utilities::string_to_double
+          (Utilities::split_string_list
+           (Utilities::trim (parenthesized_expr.substr
+                             (1,
+                              parenthesized_expr.size() - 2)),
+            ','));
+        AssertThrow (MaterialParameters::frequencies.size() >= 1,
+                     ExcMessage ("Wrong format for 'list' frequency spacing."));
+
+        // Because MaterialParameters::frequencies stores angular
+        // frequencies, we need to multiply by 2*pi
+        for (auto &f : MaterialParameters::frequencies)
+          f *= 2 * numbers::PI;
+      }
+    else
+      AssertThrow (false,
+                   ExcMessage ("The format for the description of the frequencies to "
+                               "be solved for, namely <"
+                               + frequency_descriptor + ">, did not match any of "
+                               "the recognized formats."));    
 
     // Then compute the dependent ones. Note that we interpret the angle in degrees.
     const ScalarType youngs_modulus
