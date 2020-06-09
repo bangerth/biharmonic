@@ -221,6 +221,9 @@ namespace MembraneOscillation
   // computing any further frequency responses. This is done by
   // placing the word "STOP" into the file "termination_signal" in the
   // current directory.
+  //
+  // Once detected, we set the corresponding flag and delete the file
+  // again.
   bool check_for_termination_signal()
   {
     static bool termination_requested = false;
@@ -248,11 +251,19 @@ namespace MembraneOscillation
     if (line == "STOP")
       {
         termination_requested = true;
+
+        // Close the file handle and remove the file.
+        in.close();
+        std::remove ("termination_signal");
+        
         return true;
       }
 
     // The file exists, but it has the wrong content (or no content so
-    // far). This means no termination.
+    // far). This means no termination. In the best of all cases, we
+    // will have caught the driver program having created but not
+    // written to the file. The next time we check, we might find the
+    // file in the correct state.
     return false;
   }
 

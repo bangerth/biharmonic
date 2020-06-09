@@ -223,7 +223,11 @@ its computations. In this case, an external program should place the text `STOP`
 into a file called `termination_signal` in the current directory. This will
 not immediately terminate the program; instead, it will finish the computations
 for the input frequencies it is currently working on, but not start computations
-for any further frequencies. Since computations on each frequency typically take
+for any further frequencies. To signal that the program has received
+the message, once the termination signal has been detected, the
+program also removes the `termination_signal` file.
+
+Since computations on each frequency typically take
 no more than a couple of seconds, this implies that the program terminates not
 long after. The last step of the program is to output data for all of the
 frequencies already computed into the `frequency_response.txt` file. In other
