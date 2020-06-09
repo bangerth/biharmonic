@@ -1267,13 +1267,18 @@ int main()
       using namespace dealii;
       using namespace MembraneOscillation;
 
+      // Remove any previous output file so that nobody gets confused
+      // if the program were to be aborted before we write into it the
+      // first time.
+      std::remove ("frequency_response.txt");
+
       // Get the global set of parameters from an input file
       {
         ParameterHandler prm;
         declare_parameters(prm);
         read_parameters(prm);
       }
-      
+
       // Finally start the computations. If we are allowed to use as
       // many threads as we want, or if we are allowed to use as many
       // or more threads as there are frequencies, then we can just
