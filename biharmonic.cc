@@ -1089,7 +1089,16 @@ namespace MembraneOscillation
     // periodically. We would like this to happen with the file in its
     // final form, not partly written.
     std::lock_guard<std::mutex> guard (results_mutex);
+
+    // First output how many frequencies have already been computed:
     std::ostringstream buffer;
+    buffer << "# " << results.size()
+           << "/"
+           << MaterialParameters::n_frequencies
+           << " frequencies computed"
+           << "\n\n";
+
+    // Then output individual information for each frequency
     buffer << "# Columns are as follows:\n"
            << "# 1: Frequency [Hz]\n"
            << "# 2: Real part of the volume displacement divided by the amplitude of pressure [m^3/Pa]\n"

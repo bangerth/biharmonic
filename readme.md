@@ -180,6 +180,9 @@ frequency omega, and in each line lists the following information:
     This is a real-valued quantity. Its units are `m/Pa`.
   - The name of the visualization file (see below) for this frequency.
 
+A summary of what each line corresponds to can be found at the top
+of the file.
+
 
 ### Monitoring progress
 
@@ -190,9 +193,10 @@ computed frequencies.
 
 To monitor the progress of computations -- for example for displaying
 a progress bar -- open this file periodically (say, once a second) and
-read what's in it. If all you want is to show progress, count the
-number of lines excluding the comments at the top and divide it by the
-number of frequencies provided as input. If you want something
+read what's in it. If all you want is to show progress: The first line
+of the file has a format that, during computations, says something
+like "`# 42/100 frequencies computed`", allowing for a quick overview
+where computations currently are. If you want something
 fancier, you can actually parse the contents of the file and update a
 graph of the frequency-dependent membrane response every time you read
 through the file. This way, the graph will fill in over time.
