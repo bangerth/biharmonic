@@ -326,14 +326,14 @@ namespace MembraneOscillation
   std::mutex results_mutex;
 
 
-  // Return whether an external program has left a signal that
+  // Check whether an external program has left a signal that
   // indicates that the current program run should terminate without
   // computing any further frequency responses. This is done by
   // placing the word "STOP" into the file "termination_signal" in the
   // current directory.
   //
-  // Once detected, we set the corresponding flag and delete the file
-  // again.
+  // Once detected, we delete the file again and terminate the
+  // program.
   bool check_for_termination_signal()
   {
     static bool termination_requested = false;
@@ -347,7 +347,10 @@ namespace MembraneOscillation
     // Try and see whether we can open the file at all. If we can't,
     // then no termination signal has been sent. If so, return 'true',
     // but before that set a flag that ensures we don't have to do the
-    // expensive test with the file in any further calls
+    // expensive test with the file in any further calls. (We'll try
+    // to abort the program below, but this may block for a bit
+    // because we need to wait for the lock that guards access to the
+    // output file.)
     std::ifstream in("termination_signal");
     if (!in)
       {
@@ -365,6 +368,13 @@ namespace MembraneOscillation
         // Close the file handle and remove the file.
         in.close();
         std::remove ("termination_signal");
+
+        // Now wait for the lock that guards access to the output file
+        // and if we have it, we know that nothing else is writing to
+        // the file at the moment and we can safely abort the program.
+        std::lock_guard<std::mutex> results_lock(results_mutex);
+        std::cerr << "*** Terminating program upon request." << std::endl;
+        std::exit (1);
         
         return true;
       }
@@ -1139,10 +1149,17 @@ namespace MembraneOscillation
   template <int dim>
   void BiharmonicProblem<dim>::run()
   {
+    check_for_termination_signal();
+
     make_grid();
     setup_system();
 
+    check_for_termination_signal();
+
     assemble_system();
+
+    check_for_termination_signal();
+
     solve();
 
     // Run the generation of graphical output in the background...
