@@ -656,8 +656,9 @@ namespace MembraneOscillation
       std::vector<types::global_dof_index> joint_dof_indices;
     };
 
-    FullMatrix<ScalarType>                   cell_matrix;
-    Vector<ScalarType>                       cell_rhs;
+    FullMatrix<ScalarType>               cell_matrix;
+    Vector<ScalarType>                   cell_rhs;
+
     std::vector<types::global_dof_index> local_dof_indices;
     std::vector<FaceData>                face_data;
   };
