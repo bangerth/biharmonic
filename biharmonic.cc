@@ -10,6 +10,8 @@
 #include <deal.II/base/function.h>
 #include <deal.II/base/thread_management.h>
 #include <deal.II/base/parameter_handler.h>
+#include <deal.II/base/timer.h>
+#include <deal.II/base/std_cxx14/memory.h>
 
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/vector.h>
@@ -325,6 +327,9 @@ namespace MembraneOscillation
   std::map<double,OutputData> results;
   std::mutex results_mutex;
 
+  TimerOutput timer_output = TimerOutput (std::cout, TimerOutput::summary,
+                                          TimerOutput::wall_times);
+  
 
   // Check whether an external program has left a signal that
   // indicates that the current program run should terminate without
@@ -474,6 +479,8 @@ namespace MembraneOscillation
   template <int dim>
   void BiharmonicProblem<dim>::make_grid()
   {
+    std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std_cxx14::make_unique<TimerOutput::Scope>(timer_output, "Make grid") : nullptr);
+    
     GridIn<dim> grid_in;
     grid_in.attach_triangulation (triangulation);
     std::ifstream input (mesh_file_name);
@@ -522,6 +529,8 @@ namespace MembraneOscillation
   template <int dim>
   void BiharmonicProblem<dim>::setup_system()
   {
+    std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std_cxx14::make_unique<TimerOutput::Scope>(timer_output, "Set up system") : nullptr);
+
     dof_handler.distribute_dofs(fe);
 
     boundary_values.clear();
@@ -690,6 +699,8 @@ namespace MembraneOscillation
   template <int dim>
   void BiharmonicProblem<dim>::assemble_system()
   {
+    std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std_cxx14::make_unique<TimerOutput::Scope>(timer_output, "Assemble linear system") : nullptr);
+
     using Iterator = typename DoFHandler<dim>::active_cell_iterator;
 
     // The first piece is the `cell_worker` that does the assembly
@@ -1058,6 +1069,8 @@ namespace MembraneOscillation
   template <int dim>
   void BiharmonicProblem<dim>::solve()
   {
+    std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std_cxx14::make_unique<TimerOutput::Scope>(timer_output, "Solve linear system") : nullptr);
+
     solution = system_rhs;
     
     SparseDirectUMFPACK direct_solver;
@@ -1072,6 +1085,8 @@ namespace MembraneOscillation
   template <int dim>
   void BiharmonicProblem<dim>::postprocess()
   {
+    std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std_cxx14::make_unique<TimerOutput::Scope>(timer_output, "Postprocess") : nullptr);
+
     // Compute the integral of the absolute value of the solution.
     const QGauss<dim>  quadrature_formula(fe.degree + 2);
     const unsigned int n_q_points = quadrature_formula.size();
@@ -1124,6 +1139,8 @@ namespace MembraneOscillation
   void
   BiharmonicProblem<dim>::output_results()
   {
+    std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std_cxx14::make_unique<TimerOutput::Scope>(timer_output, "Creating visual output") : nullptr);
+
     DataOut<dim> data_out;
 
     data_out.attach_dof_handler(dof_handler);
