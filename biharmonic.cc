@@ -733,6 +733,8 @@ namespace MembraneOscillation
     auto cell_worker = [&](const Iterator &  cell,
                            ScratchData<dim> &scratch_data,
                            CopyData &        copy_data) {
+      std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std_cxx14::make_unique<TimerOutput::Scope>(timer_output, "Assemble linear system - cell") : nullptr);
+      
       copy_data.cell_matrix = 0;
       copy_data.cell_rhs    = 0;
 
@@ -820,6 +822,8 @@ namespace MembraneOscillation
                            const unsigned int &nsf,
                            ScratchData<dim> &  scratch_data,
                            CopyData &          copy_data) {
+      std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std_cxx14::make_unique<TimerOutput::Scope>(timer_output, "Assemble linear system - face") : nullptr);
+      
       FEInterfaceValues<dim> &fe_interface_values =
         scratch_data.fe_interface_values;
       fe_interface_values.reinit(cell, f, sf, ncell, nf, nsf);
@@ -919,6 +923,8 @@ namespace MembraneOscillation
                                const unsigned int &face_no,
                                ScratchData<dim> &  scratch_data,
                                CopyData &          copy_data) {
+      std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std_cxx14::make_unique<TimerOutput::Scope>(timer_output, "Assemble linear system - boundary") : nullptr);
+      
       FEInterfaceValues<dim> &fe_interface_values = scratch_data.fe_interface_values;
       fe_interface_values.reinit(cell, face_no);
       const auto &q_points = fe_interface_values.get_quadrature_points();
@@ -1003,6 +1009,8 @@ namespace MembraneOscillation
     // and that the `face_worker` and `boundary_worker` have added
     // to the `copy_data.face_data` array.
     auto copier = [&](const CopyData &copy_data) {
+      std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std_cxx14::make_unique<TimerOutput::Scope>(timer_output, "Assemble linear system - copy") : nullptr);
+      
       for (unsigned int i=0; i<copy_data.cell_matrix.m(); ++i)
         for (unsigned int j=0; j<copy_data.cell_matrix.m(); ++j)
           system_matrix.add(copy_data.local_dof_indices[i],
