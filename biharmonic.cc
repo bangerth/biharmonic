@@ -536,7 +536,7 @@ namespace MembraneOscillation
     boundary_values.clear();
     VectorTools::interpolate_boundary_values(dof_handler,
                                              0,
-                                             ZeroFunction<dim,ScalarType>(),
+                                             Functions::ZeroFunction<dim,ScalarType>(),
                                              boundary_values);
 
     DynamicSparsityPattern c_sparsity(dof_handler.n_dofs());
