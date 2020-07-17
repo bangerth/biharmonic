@@ -110,6 +110,10 @@ namespace MembraneOscillation
                        Patterns::Double(0),
                        "The tension coefficient T that describes the membrane part of "
                        "the material behavior. Units: [N/m].");
+    prm.declare_entry ("Tension loss tangent", "0",
+                       Patterns::Double(0,90),
+                       "The angle used to make the tension complex-valued. "
+                       "Units: [degrees].");
 
     prm.declare_entry ("Frequencies", "linear_spacing(100,10000,100)",
                        Patterns::Anything(),
@@ -150,14 +154,15 @@ namespace MembraneOscillation
     using namespace MaterialParameters;
     
     // First get the independent parameters from the input file:
-    double E, E_loss_tangent, poissons_ratio;
+    double E, E_loss_tangent, T, T_loss_tangent, poissons_ratio;
     
     thickness      = prm.get_double ("Thickness");
     density        = prm.get_double ("Density");
     E              = prm.get_double ("Young's modulus");
     E_loss_tangent = prm.get_double ("Young's modulus loss tangent");
     poissons_ratio = prm.get_double ("Poisson's ratio");
-    tension        = prm.get_double ("Tension");
+    T              = prm.get_double ("Tension");
+    T_loss_tangent = prm.get_double ("Tension loss tangent");
 
     mesh_file_name = prm.get ("Mesh file name");
 
@@ -286,6 +291,8 @@ namespace MembraneOscillation
     // Then compute the dependent ones. Note that we interpret the angle in degrees.
     const ScalarType youngs_modulus
       = E * std::exp(std::complex<double>(0,2*numbers::PI*E_loss_tangent/360));
+    tension
+      = T * std::exp(std::complex<double>(0,2*numbers::PI*T_loss_tangent/360));
 
     stiffness_D
       = (youngs_modulus *

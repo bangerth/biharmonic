@@ -59,6 +59,7 @@ set Young's modulus loss tangent     = 2
 set Young's modulus                  = 200e6
 set Poisson's ratio                  = 0.3
 set Tension                          = 30
+set Tension loss tangent             = 0
 
 set Frequencies                      = linear_spacing(100,1e4,100)
 
@@ -74,9 +75,10 @@ that describes the domain on which to solve the PDE (i.e., the shape
 of the membrane).
 
 The second and block describes the mechanical properties of the
-membrane. All parameters are given in SI units. `Young's modulus loss tangent` is
+membrane. All parameters are given in SI units. `Young's modulus loss
+tangent` and `Tension loss tangent` are
 dimensionless (or, more precisely, has the units of a geometric angle)
-and is interpreted in degrees. The minimal and maximal 
+and are interpreted in degrees. The minimal and maximal 
 frequencies are intrepreted in Hz.
 
 The third block describes the frequencies that should be
@@ -298,7 +300,8 @@ In these experiments, we use the following set of material parameters:
     E            = 200e6 * exp(j*E_tangent); // Pa
     nu           = 0.3;                      // (Poisson's ratio)
     D            = E*h^3/12/(1-nu^2).
-    T            = 30;                       // 1 N/m
+    T_tangent    = 0*pi * 2./360.;           // 0 degrees
+    T            = 30 * exp(j*T_tangent);    // 30 N/m
 ```
 The domain is a square with edge length `0.015m = 15mm`.
 
