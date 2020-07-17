@@ -51,21 +51,21 @@ article:
 The program reads the parameter values that determine what is to be computed from a
 file called `biharmonic.prm`. This file looks as follows:
 ```
-set Mesh file name            = ./square_mesh.vtk
+set Mesh file name                   = ./square_mesh.vtk
 
-set Thickness                 = 0.0001
-set Density                   = 100
-set Loss tangent              = 2
-set Young's modulus           = 200e6
-set Poisson's ratio           = 0.3
-set Tension                   = 30
+set Thickness                        = 0.0001
+set Density                          = 100
+set Young's modulus loss tangent     = 2
+set Young's modulus                  = 200e6
+set Poisson's ratio                  = 0.3
+set Tension                          = 30
 
-set Frequencies               = linear_spacing(100,1e4,100)
+set Frequencies                      = linear_spacing(100,1e4,100)
 
 set Number of mesh refinement steps  = 5
 set Finite element polynomial degree = 2
 
-set Number of threads         = 0
+set Number of threads                = 0
 ```
 The first of these parameters, obviously, corresponds to the name of a
 file that contains the mesh (in [VTK
@@ -74,7 +74,7 @@ that describes the domain on which to solve the PDE (i.e., the shape
 of the membrane).
 
 The second and block describes the mechanical properties of the
-membrane. All parameters are given in SI units. `Loss tangent` is
+membrane. All parameters are given in SI units. `Young's modulus loss tangent` is
 dimensionless (or, more precisely, has the units of a geometric angle)
 and is interpreted in degrees. The minimal and maximal 
 frequencies are intrepreted in Hz.

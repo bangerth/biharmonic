@@ -1,15 +1,15 @@
-set Mesh file name            = ../biharmonic/square_mesh.vtk
+set Mesh file name                   = ../biharmonic/square_mesh.vtk
 
-set Thickness                 = 0.0001
-set Density                   = 100
-set Loss tangent              = 2
-set Young's modulus           = 200e6
-set Poisson's ratio           = 0.3
-set Tension                   = 30
+set Thickness                        = 0.0001
+set Density                          = 100
+set Young's modulus loss tangent     = 2
+set Young's modulus                  = 200e6
+set Poisson's ratio                  = 0.3
+set Tension                          = 30
 
-set Frequencies               = linear_spacing(100,1e4,100)
+set Frequencies                      = linear_spacing(100,1e4,100)
 
 set Number of mesh refinement steps  = 5
 set Finite element polynomial degree = 2
 
-set Number of threads         = 0
+set Number of threads                = 0
