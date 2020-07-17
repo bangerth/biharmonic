@@ -55,7 +55,7 @@ set Mesh file name            = ./square_mesh.vtk
 
 set Thickness                 = 0.0001
 set Density                   = 100
-set Loss angle                = 2
+set Loss tangent              = 2
 set Young's modulus           = 200e6
 set Poisson's ratio           = 0.3
 set Tension                   = 30
@@ -74,8 +74,9 @@ that describes the domain on which to solve the PDE (i.e., the shape
 of the membrane).
 
 The second and block describes the mechanical properties of the
-membrane. All parameters are given in SI units. `Loss angle` is
-dimensionless and interpreted in degrees. The minimal and maximal
+membrane. All parameters are given in SI units. `Loss tangent` is
+dimensionless (or, more precisely, has the units of a geometric angle)
+and is interpreted in degrees. The minimal and maximal 
 frequencies are intrepreted in Hz.
 
 The third block describes the frequencies that should be
@@ -291,13 +292,13 @@ similar, but do have some differences. We explain these further below.
 
 In these experiments, we use the following set of material parameters:
 ```
-    h            = 0.000100;               // 100 microns
-    rho          = 100;                    // kg/m^3
-    E_angle      = 2*pi * 2./360.;         // 2 degrees
-    E            = 200e6 * exp(j*E_angle); // Pa
-    nu           = 0.3;                    // (Poisson's ratio)
+    h            = 0.000100;                 // 100 microns
+    rho          = 100;                      // kg/m^3
+    E_tangent    = 2*pi * 2./360.;           // 2 degrees
+    E            = 200e6 * exp(j*E_tangent); // Pa
+    nu           = 0.3;                      // (Poisson's ratio)
     D            = E*h^3/12/(1-nu^2).
-    T            = 30;                     // 1 N/m
+    T            = 30;                       // 1 N/m
 ```
 The domain is a square with edge length `0.015m = 15mm`.
 

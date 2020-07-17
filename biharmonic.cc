@@ -96,7 +96,7 @@ namespace MembraneOscillation
     prm.declare_entry ("Density", "100",
                        Patterns::Double(0),
                        "Volumetric density of the membrane material. Units: [kg/m^3].");
-    prm.declare_entry ("Loss angle", "2",
+    prm.declare_entry ("Loss tangent", "2",
                        Patterns::Double(0,90),
                        "The angle used to make the Young's modulus complex-valued. "
                        "Units: [degrees].");
@@ -150,11 +150,11 @@ namespace MembraneOscillation
     using namespace MaterialParameters;
     
     // First get the independent parameters from the input file:
-    double loss_angle, E, poissons_ratio;
+    double loss_tangent, E, poissons_ratio;
     
     thickness      = prm.get_double ("Thickness");
     density        = prm.get_double ("Density");
-    loss_angle     = prm.get_double ("Loss angle");
+    loss_tangent     = prm.get_double ("Loss tangent");
     E              = prm.get_double ("Young's modulus");
     poissons_ratio = prm.get_double ("Poisson's ratio");
     tension        = prm.get_double ("Tension");
@@ -285,7 +285,7 @@ namespace MembraneOscillation
 
     // Then compute the dependent ones. Note that we interpret the angle in degrees.
     const ScalarType youngs_modulus
-      = E * std::exp(std::complex<double>(0,2*numbers::PI*loss_angle/360));
+      = E * std::exp(std::complex<double>(0,2*numbers::PI*loss_tangent/360));
 
     stiffness_D
       = (youngs_modulus *
