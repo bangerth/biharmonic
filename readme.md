@@ -126,7 +126,7 @@ This is not useful, because it does not provide us with a wave speed
 _c=w/k_ that is constant, but instead one that depends on the
 frequency of the wave. On the other hand, we can compute wave speeds
 for the extreme cases where either _D=0_ or _T=0_, i.e., for a pure
-membrane or pure plate. We can then take the minimum of the two as an
+membrane or pure plate. We can then take the maximum of the two as an
 indication of how fast a wave would traverse the medium:
 ```
   c = max{ sqrt{ T / (rho h) }, sqrt{ D k^2 / (rho h) } }
