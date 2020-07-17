@@ -6,7 +6,7 @@ set Young's modulus                  = 200e6
 set Young's modulus loss tangent     = 2
 set Poisson's ratio                  = 0.3
 set Tension                          = 30
-set Tension loss tangent             = 2
+set Tension loss tangent             = 0
 
 set Frequencies                      = linear_spacing(100,1e4,100)
 
