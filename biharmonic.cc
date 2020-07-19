@@ -386,7 +386,7 @@ namespace MembraneOscillation
         // and if we have it, we know that nothing else is writing to
         // the file at the moment and we can safely abort the program.
         std::lock_guard<std::mutex> results_lock(results_mutex);
-		logger << "*** Terminating program upon request." << std::endl;
+        logger << "INFO *** Terminating program upon request." << std::endl;
         std::exit (1);
         
         return true;
@@ -1220,7 +1220,7 @@ namespace MembraneOscillation
     // working on the frequency this task corresponds to.
     if (check_for_termination_signal() == true)
       {
-        logger << "Aborting work on omega = " << omega << std::endl;
+        logger << "INFO Aborting work on omega = " << omega << std::endl;
         return;
       }
 
@@ -1231,7 +1231,7 @@ namespace MembraneOscillation
       }
     catch (const std::exception &exc)
       {
-		logger << "Exception while computing for frequency "
+        logger << "ERROR Exception while computing for frequency "
                   << omega/2/numbers::PI << ":\n"
                   << exc.what() << std::endl;
         throw;
@@ -1317,7 +1317,7 @@ int main(int argc, char *argv[])
     }
   
   logger = std::ofstream (instance_folder + "/output.log");
-  logger << "started with argument '" << instance_folder << "'" << std::endl;
+  logger << "INFO Program started with argument '" << instance_folder << "'" << std::endl;
 
   try
     {
@@ -1349,7 +1349,7 @@ int main(int argc, char *argv[])
             tasks.emplace_back (std::async (std::launch::async,
                                             [=]() { solve_one_frequency (omega); }));
       
-          logger << "Number of frequencies scheduled: "
+          logger << "INFO Number of frequencies scheduled: "
                     << tasks.size() << std::endl;
 
           // Now wait for it all:
@@ -1402,7 +1402,7 @@ int main(int argc, char *argv[])
           };
 
           // Now start the initial tasks.
-          logger << "Using processing with limited number of "
+          logger << "INFO Using processing with limited number of "
                     << n_threads << " threads." << std::endl;
           std::vector<std::thread> threads;
           for (unsigned int i=0; i<n_threads; ++i)
@@ -1416,7 +1416,7 @@ int main(int argc, char *argv[])
             thread.join();
         }
       
-      logger << "Number of frequencies computed: "
+      logger << "INFO Number of frequencies computed: "
                 << results.size() << std::endl;      
 
       // Whether or not a termination signal has been sent, try to
@@ -1431,7 +1431,7 @@ int main(int argc, char *argv[])
                 << std::endl
                 << "----------------------------------------------------"
                 << std::endl;
-	  logger << "Exception on processing: " << std::endl
+      logger << "ERROR Exception on processing: " << std::endl
                 << exc.what() << std::endl
                 << "Aborting!" << std::endl
                 << "----------------------------------------------------"
@@ -1441,11 +1441,11 @@ int main(int argc, char *argv[])
     }
   catch (...)
     {
-	  logger << std::endl
+      logger << std::endl
                 << std::endl
                 << "----------------------------------------------------"
                 << std::endl;
-	  logger << "Unknown exception!" << std::endl
+      logger << "ERROR Unknown exception!" << std::endl
                 << "Aborting!" << std::endl
                 << "----------------------------------------------------"
                 << std::endl;
