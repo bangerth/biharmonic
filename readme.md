@@ -51,21 +51,22 @@ article:
 The program reads the parameter values that determine what is to be computed from a
 file called `biharmonic.prm`. This file looks as follows:
 ```
-set Mesh file name            = ./square_mesh.vtk
+set Mesh file name                   = ./square_mesh.vtk
 
-set Thickness                 = 0.0001
-set Density                   = 100
-set Loss angle                = 2
-set Young's modulus           = 200e6
-set Poisson's ratio           = 0.3
-set Tension                   = 30
+set Thickness                        = 0.0001
+set Density                          = 100
+set Young's modulus loss tangent     = 2
+set Young's modulus                  = 200e6
+set Poisson's ratio                  = 0.3
+set Tension                          = 30
+set Tension loss tangent             = 0
 
-set Frequencies               = linear_spacing(100,1e4,100)
+set Frequencies                      = linear_spacing(100,1e4,100)
 
 set Number of mesh refinement steps  = 5
 set Finite element polynomial degree = 2
 
-set Number of threads         = 0
+set Number of threads                = 0
 ```
 The first of these parameters, obviously, corresponds to the name of a
 file that contains the mesh (in [VTK
@@ -74,8 +75,10 @@ that describes the domain on which to solve the PDE (i.e., the shape
 of the membrane).
 
 The second and block describes the mechanical properties of the
-membrane. All parameters are given in SI units. `Loss angle` is
-dimensionless and interpreted in degrees. The minimal and maximal
+membrane. All parameters are given in SI units. `Young's modulus loss
+tangent` and `Tension loss tangent` are
+dimensionless (or, more precisely, has the units of a geometric angle)
+and are interpreted in degrees. The minimal and maximal 
 frequencies are intrepreted in Hz.
 
 The third block describes the frequencies that should be
@@ -126,7 +129,7 @@ This is not useful, because it does not provide us with a wave speed
 _c=w/k_ that is constant, but instead one that depends on the
 frequency of the wave. On the other hand, we can compute wave speeds
 for the extreme cases where either _D=0_ or _T=0_, i.e., for a pure
-membrane or pure plate. We can then take the minimum of the two as an
+membrane or pure plate. We can then take the maximum of the two as an
 indication of how fast a wave would traverse the medium:
 ```
   c = max{ sqrt{ T / (rho h) }, sqrt{ D k^2 / (rho h) } }
@@ -291,13 +294,14 @@ similar, but do have some differences. We explain these further below.
 
 In these experiments, we use the following set of material parameters:
 ```
-    h            = 0.000100;               // 100 microns
-    rho          = 100;                    // kg/m^3
-    E_angle      = 2*pi * 2./360.;         // 2 degrees
-    E            = 200e6 * exp(j*E_angle); // Pa
-    nu           = 0.3;                    // (Poisson's ratio)
+    h            = 0.000100;                 // 100 microns
+    rho          = 100;                      // kg/m^3
+    E_tangent    = 2*pi * 2./360.;           // 2 degrees
+    E            = 200e6 * exp(j*E_tangent); // Pa
+    nu           = 0.3;                      // (Poisson's ratio)
     D            = E*h^3/12/(1-nu^2).
-    T            = 30;                     // 1 N/m
+    T_tangent    = 0*pi * 2./360.;           // 0 degrees
+    T            = 30 * exp(j*T_tangent);    // 30 N/m
 ```
 The domain is a square with edge length `0.015m = 15mm`.
 
