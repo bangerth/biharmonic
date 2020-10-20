@@ -1,6 +1,6 @@
 # Overview
 
-The program created for Milestone 1 of this project solves the equations that describe
+The executable program of this project solves the equations that describe
 the response of a rigid membrane to an external force that acts perpendicular to the
 membrane. Specifically, it solves the following partial differential equation:
 ```
