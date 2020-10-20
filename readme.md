@@ -49,7 +49,8 @@ article:
 # Input
 
 The program reads the parameter values that determine what is to be computed from a
-file called `biharmonic.prm`. This file looks as follows:
+file called `biharmonic.prm`, located in the directory in which the
+executable is run. This file looks as follows:
 ```
 set Mesh file name                   = ./square_mesh.vtk
 
