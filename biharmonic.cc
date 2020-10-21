@@ -58,13 +58,14 @@
 #include <cstdio>
 #include <complex>
 
+std::string instance_folder;
+std::ofstream logger;
 
 namespace MembraneOscillation
 {
   using namespace dealii;
 
   using ScalarType = std::complex<double>;
-
 
   // The following namespace defines material parameters. We use SI units.
   namespace MaterialParameters
@@ -147,7 +148,7 @@ namespace MembraneOscillation
   read_parameters (ParameterHandler &prm)
   {
     // First read parameter values from the input file 'biharmonic.prm'
-    prm.parse_input ("biharmonic.prm");
+    prm.parse_input (instance_folder + "/biharmonic.prm");
     
 
     
@@ -334,7 +335,7 @@ namespace MembraneOscillation
   std::map<double,OutputData> results;
   std::mutex results_mutex;
 
-  TimerOutput timer_output = TimerOutput (std::cout, TimerOutput::summary,
+  TimerOutput timer_output = TimerOutput (logger, TimerOutput::summary,
                                           TimerOutput::wall_times);
   
 
@@ -363,7 +364,7 @@ namespace MembraneOscillation
     // to abort the program below, but this may block for a bit
     // because we need to wait for the lock that guards access to the
     // output file.)
-    std::ifstream in("termination_signal");
+    std::ifstream in(instance_folder + "/termination_signal");
     if (!in)
       {
         termination_requested = false;
@@ -379,13 +380,13 @@ namespace MembraneOscillation
 
         // Close the file handle and remove the file.
         in.close();
-        std::remove ("termination_signal");
+        std::remove ((instance_folder + "/termination_signal").c_str());
 
         // Now wait for the lock that guards access to the output file
         // and if we have it, we know that nothing else is writing to
         // the file at the moment and we can safely abort the program.
         std::lock_guard<std::mutex> results_lock(results_mutex);
-        std::cerr << "*** Terminating program upon request." << std::endl;
+        logger << "INFO *** Terminating program upon request." << std::endl;
         std::exit (1);
         
         return true;
@@ -490,7 +491,7 @@ namespace MembraneOscillation
     
     GridIn<dim> grid_in;
     grid_in.attach_triangulation (triangulation);
-    std::ifstream input (mesh_file_name);
+    std::ifstream input (instance_folder + "/" + mesh_file_name);
     grid_in.read_vtk (input);
 
     // Now implement the heuristic for mesh refinement described in
@@ -1162,7 +1163,7 @@ namespace MembraneOscillation
     data_out.add_data_vector(solution, "solution");
     data_out.build_patches(fe.degree);
 
-    std::string file_name = "visualization/solution-" +
+    std::string file_name = instance_folder + "/visualization/solution-" +
                             std::to_string(static_cast<unsigned int>(omega/2/numbers::PI)) +
                             ".vtu";
     std::ofstream output_vtu(file_name);
@@ -1219,7 +1220,7 @@ namespace MembraneOscillation
     // working on the frequency this task corresponds to.
     if (check_for_termination_signal() == true)
       {
-        std::cout << "Aborting work on omega = " << omega << std::endl;
+        logger << "INFO Aborting work on omega = " << omega << std::endl;
         return;
       }
 
@@ -1230,7 +1231,7 @@ namespace MembraneOscillation
       }
     catch (const std::exception &exc)
       {
-        std::cerr << "Exception while computing for frequency "
+        logger << "ERROR Exception while computing for frequency "
                   << omega/2/numbers::PI << ":\n"
                   << exc.what() << std::endl;
         throw;
@@ -1288,7 +1289,7 @@ namespace MembraneOscillation
                << std::endl;
       }
 
-    std::ofstream frequency_response ("frequency_response.txt");
+    std::ofstream frequency_response (instance_folder + "/frequency_response.txt");
     frequency_response << buffer.str();
   }
 } // namespace MembraneOscillation
@@ -1304,8 +1305,20 @@ namespace MembraneOscillation
 // we use requires the element degree to be at least two, we check with
 // an assertion that whatever one sets for the polynomial degree actually
 // makes sense.
-int main()
+int main(int argc, char *argv[])
 {
+  if (argc >= 2)
+    {
+      instance_folder = std::string(argv[1]);
+    }
+  else
+    {
+      instance_folder = std::string(".");
+    }
+  
+  logger = std::ofstream (instance_folder + "/output.log");
+  logger << "INFO Program started with argument '" << instance_folder << "'" << std::endl;
+
   try
     {
       using namespace dealii;
@@ -1314,7 +1327,7 @@ int main()
       // Remove any previous output file so that nobody gets confused
       // if the program were to be aborted before we write into it the
       // first time.
-      std::remove ("frequency_response.txt");
+      std::remove ((instance_folder + "/frequency_response.txt").c_str());
 
       // Get the global set of parameters from an input file
       {
@@ -1336,7 +1349,7 @@ int main()
             tasks.emplace_back (std::async (std::launch::async,
                                             [=]() { solve_one_frequency (omega); }));
       
-          std::cout << "Number of frequencies scheduled: "
+          logger << "INFO Number of frequencies scheduled: "
                     << tasks.size() << std::endl;
 
           // Now wait for it all:
@@ -1389,7 +1402,7 @@ int main()
           };
 
           // Now start the initial tasks.
-          std::cout << "Using processing with limited number of "
+          logger << "INFO Using processing with limited number of "
                     << n_threads << " threads." << std::endl;
           std::vector<std::thread> threads;
           for (unsigned int i=0; i<n_threads; ++i)
@@ -1403,22 +1416,22 @@ int main()
             thread.join();
         }
       
-      std::cout << "Number of frequencies computed: "
+      logger << "INFO Number of frequencies computed: "
                 << results.size() << std::endl;      
 
       // Whether or not a termination signal has been sent, try to
       // remove the file that indicates this signal. That's because if
       // we don't do that, the next call to this program won't produce
       // anything at all.
-      std::remove ("termination_signal");
+      std::remove ((instance_folder + "/termination_signal").c_str());
     }
   catch (std::exception &exc)
     {
-      std::cerr << std::endl
+      logger << std::endl
                 << std::endl
                 << "----------------------------------------------------"
                 << std::endl;
-      std::cerr << "Exception on processing: " << std::endl
+      logger << "ERROR Exception on processing: " << std::endl
                 << exc.what() << std::endl
                 << "Aborting!" << std::endl
                 << "----------------------------------------------------"
@@ -1428,11 +1441,11 @@ int main()
     }
   catch (...)
     {
-      std::cerr << std::endl
+      logger << std::endl
                 << std::endl
                 << "----------------------------------------------------"
                 << std::endl;
-      std::cerr << "Unknown exception!" << std::endl
+      logger << "ERROR Unknown exception!" << std::endl
                 << "Aborting!" << std::endl
                 << "----------------------------------------------------"
                 << std::endl;
