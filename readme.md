@@ -48,9 +48,18 @@ article:
 
 # Input
 
-The program reads the parameter values that determine what is to be computed from a
+The program reads the parameter values that determine what is to be
+computed from an input file. If the executable is called without
+arguments, then the input file is implicitly assumed to be a
 file called `biharmonic.prm`, located in the directory in which the
-executable is run. This file looks as follows:
+executable is run. In that case, output is also written into this
+directory. On the other hand, if the executable is called with a
+command line argument, then this argument is interpreted as the name
+of a directory in which the input file `biharmonic.prm` is located,
+and to which the output files are to be written.
+
+
+The syntax of the `biharmonic.prm` file is as follows:
 ```
 set Mesh file name                   = ./square_mesh.vtk
 
