@@ -87,7 +87,7 @@ of the membrane).
 The second and block describes the mechanical properties of the
 membrane. All parameters are given in SI units. `Young's modulus loss
 tangent` and `Tension loss tangent` are
-dimensionless (or, more precisely, has the units of a geometric angle)
+dimensionless (or, more precisely, have the units of a geometric angle)
 and are interpreted in degrees. The minimal and maximal 
 frequencies are intrepreted in Hz.
 
@@ -304,14 +304,14 @@ similar, but do have some differences. We explain these further below.
 
 In these experiments, we use the following set of material parameters:
 ```
-    h            = 0.000100;                 // 100 microns
-    rho          = 100;                      // kg/m^3
-    E_tangent    = 2*pi * 2./360.;           // 2 degrees
-    E            = 200e6 * exp(j*E_tangent); // Pa
-    nu           = 0.3;                      // (Poisson's ratio)
-    D            = E*h^3/12/(1-nu^2).
-    T_tangent    = 0*pi * 2./360.;           // 0 degrees
-    T            = 30 * exp(j*T_tangent);    // 30 N/m
+    h            = 0.000100;                             // 100 microns
+    rho          = 100;                                  // 100 kg/m^3
+    E_tangent    = 2.;                                   // 2 degrees
+    E            = 200e6 * exp(j*E_tangent * 2*pi/360.); // Pa
+    nu           = 0.3;                                  // (Poisson's ratio)
+    D            = E*h^3/12/(1-nu^2).;
+    T_tangent    = 0.;                                   // 0 degrees
+    T            = 30 * exp(j*T_tangent * 2*pi/360.);    // N/m
 ```
 The domain is a square with edge length `0.015m = 15mm`.
 
