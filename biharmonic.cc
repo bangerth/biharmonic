@@ -1324,6 +1324,15 @@ int main(int argc, char *argv[])
       using namespace dealii;
       using namespace MembraneOscillation;
 
+      // Set the limit for internal thread creation to one -- i.e.,
+      // deal.II will not create any threads itself for things such as
+      // matrix-vector products. The logic below may also create tasks
+      // that run in parallel, and because each of these tasks doesn't
+      // use parallelism itself, the overall parallelism is determined
+      // by how many tasks we create explicitly below.
+      MultithreadInfo::set_thread_limit (1);
+      
+
       // Remove any previous output file so that nobody gets confused
       // if the program were to be aborted before we write into it the
       // first time.
