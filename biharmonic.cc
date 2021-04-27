@@ -1112,7 +1112,6 @@ namespace MembraneOscillation
                             update_values | update_quadrature_points | update_JxW_values);
 
     ScalarType integral_solution = 0;
-    double integral_p = 0;
 
     double max_solution = 0;
     double max_p = 0;
@@ -1123,14 +1122,10 @@ namespace MembraneOscillation
       {
         fe_values.reinit(cell);
         fe_values.get_function_values(solution, function_values_solution);
-        RightHandSide<dim>(omega).value_list (fe_values.get_quadrature_points(),
-                                              function_values_p);
             
         for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
           {
             integral_solution += function_values_solution[q_point] *
-                                 fe_values.JxW(q_point);
-            integral_p        += function_values_p[q_point] *
                                  fe_values.JxW(q_point);
 
             max_solution = std::max (max_solution,
