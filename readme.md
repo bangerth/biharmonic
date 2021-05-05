@@ -84,7 +84,7 @@ format](https://vtk.org/wp-content/uploads/2015/04/file-formats.pdf))
 that describes the domain on which to solve the PDE (i.e., the shape
 of the membrane).
 
-The second and block describes the mechanical properties of the
+The second block describes the mechanical properties of the
 membrane. All parameters are given in SI units. `Young's modulus loss
 tangent` and `Tension loss tangent` are
 dimensionless (or, more precisely, have the units of a geometric angle)
