@@ -246,19 +246,11 @@ file corresponds to which frequency.
 
 There may be times where callers of this program do not want it to continue with
 its computations. In this case, an external program should place the text `STOP`
-into a file called `termination_signal` in the current directory. This will
-not immediately terminate the program; instead, it will finish the computations
-for the input frequencies it is currently working on, but not start computations
-for any further frequencies. To signal that the program has received
-the message, once the termination signal has been detected, the
-program also removes the `termination_signal` file.
-
-Since computations on each frequency typically take
-no more than a couple of seconds, this implies that the program terminates not
-long after. The last step of the program is to output data for all of the
-frequencies already computed into the `frequency_response.txt` file. In other
-words, one has to wait for the actual program termination before reading the
-results.
+into a file called `termination_signal` in the current directory. This
+will terminate the program. That said, because the program outputs all
+data already computed whenever one frequency is finished, even when a
+program execution is terminated, already computed information is still
+stored in the output files.
 
 The program works on input frequencies in an unpredictable order, since work
 for each frequency is scheduled with the operating system at the beginning
