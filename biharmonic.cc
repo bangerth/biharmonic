@@ -487,7 +487,7 @@ namespace MembraneOscillation
   template <int dim>
   void BiharmonicProblem<dim>::make_grid()
   {
-    std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std_cxx14::make_unique<TimerOutput::Scope>(timer_output, "Make grid") : nullptr);
+    std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std::make_unique<TimerOutput::Scope>(timer_output, "Make grid") : nullptr);
     
     GridIn<dim> grid_in;
     grid_in.attach_triangulation (triangulation);
@@ -537,7 +537,7 @@ namespace MembraneOscillation
   template <int dim>
   void BiharmonicProblem<dim>::setup_system()
   {
-    std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std_cxx14::make_unique<TimerOutput::Scope>(timer_output, "Set up system") : nullptr);
+    std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std::make_unique<TimerOutput::Scope>(timer_output, "Set up system") : nullptr);
 
     dof_handler.distribute_dofs(fe);
 
@@ -707,7 +707,7 @@ namespace MembraneOscillation
   template <int dim>
   void BiharmonicProblem<dim>::assemble_system()
   {
-    std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std_cxx14::make_unique<TimerOutput::Scope>(timer_output, "Assemble linear system") : nullptr);
+    std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std::make_unique<TimerOutput::Scope>(timer_output, "Assemble linear system") : nullptr);
 
     using Iterator = typename DoFHandler<dim>::active_cell_iterator;
 
@@ -741,7 +741,7 @@ namespace MembraneOscillation
     auto cell_worker = [&](const Iterator &  cell,
                            ScratchData<dim> &scratch_data,
                            CopyData &        copy_data) {
-      std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std_cxx14::make_unique<TimerOutput::Scope>(timer_output, "Assemble linear system - cell") : nullptr);
+      std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std::make_unique<TimerOutput::Scope>(timer_output, "Assemble linear system - cell") : nullptr);
       
       copy_data.cell_matrix = 0;
       copy_data.cell_rhs    = 0;
@@ -830,7 +830,7 @@ namespace MembraneOscillation
                            const unsigned int &nsf,
                            ScratchData<dim> &  scratch_data,
                            CopyData &          copy_data) {
-      std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std_cxx14::make_unique<TimerOutput::Scope>(timer_output, "Assemble linear system - face") : nullptr);
+      std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std::make_unique<TimerOutput::Scope>(timer_output, "Assemble linear system - face") : nullptr);
       
       FEInterfaceValues<dim> &fe_interface_values =
         scratch_data.fe_interface_values;
@@ -931,7 +931,7 @@ namespace MembraneOscillation
                                const unsigned int &face_no,
                                ScratchData<dim> &  scratch_data,
                                CopyData &          copy_data) {
-      std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std_cxx14::make_unique<TimerOutput::Scope>(timer_output, "Assemble linear system - boundary") : nullptr);
+      std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std::make_unique<TimerOutput::Scope>(timer_output, "Assemble linear system - boundary") : nullptr);
       
       FEInterfaceValues<dim> &fe_interface_values = scratch_data.fe_interface_values;
       fe_interface_values.reinit(cell, face_no);
@@ -1017,7 +1017,7 @@ namespace MembraneOscillation
     // and that the `face_worker` and `boundary_worker` have added
     // to the `copy_data.face_data` array.
     auto copier = [&](const CopyData &copy_data) {
-      std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std_cxx14::make_unique<TimerOutput::Scope>(timer_output, "Assemble linear system - copy") : nullptr);
+      std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std::make_unique<TimerOutput::Scope>(timer_output, "Assemble linear system - copy") : nullptr);
       
       for (unsigned int i=0; i<copy_data.cell_matrix.m(); ++i)
         for (unsigned int j=0; j<copy_data.cell_matrix.m(); ++j)
@@ -1085,7 +1085,7 @@ namespace MembraneOscillation
   template <int dim>
   void BiharmonicProblem<dim>::solve()
   {
-    std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std_cxx14::make_unique<TimerOutput::Scope>(timer_output, "Solve linear system") : nullptr);
+    std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std::make_unique<TimerOutput::Scope>(timer_output, "Solve linear system") : nullptr);
 
     solution = system_rhs;
     
@@ -1101,7 +1101,7 @@ namespace MembraneOscillation
   template <int dim>
   void BiharmonicProblem<dim>::postprocess()
   {
-    std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std_cxx14::make_unique<TimerOutput::Scope>(timer_output, "Postprocess") : nullptr);
+    std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std::make_unique<TimerOutput::Scope>(timer_output, "Postprocess") : nullptr);
 
     // Compute the integral of the absolute value of the solution.
     const QGauss<dim>  quadrature_formula(fe.degree + 2);
@@ -1150,7 +1150,7 @@ namespace MembraneOscillation
   void
   BiharmonicProblem<dim>::output_results()
   {
-    std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std_cxx14::make_unique<TimerOutput::Scope>(timer_output, "Creating visual output") : nullptr);
+    std::unique_ptr<TimerOutput::Scope> timer_section = (n_threads==1 ? std::make_unique<TimerOutput::Scope>(timer_output, "Creating visual output") : nullptr);
 
     DataOut<dim> data_out;
 
