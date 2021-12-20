@@ -11,7 +11,6 @@
 #include <deal.II/base/thread_management.h>
 #include <deal.II/base/parameter_handler.h>
 #include <deal.II/base/timer.h>
-#include <deal.II/base/std_cxx14/memory.h>
 
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/vector.h>
@@ -53,6 +52,7 @@
 #include <future>
 #include <thread>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <cmath>
 #include <cstdio>
