@@ -1122,6 +1122,8 @@ namespace MembraneOscillation
       {
         fe_values.reinit(cell);
         fe_values.get_function_values(solution, function_values_solution);
+        RightHandSide<dim>(omega).value_list (fe_values.get_quadrature_points(),
+                                              function_values_p);
             
         for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
           {
